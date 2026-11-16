@@ -1,0 +1,322 @@
+[
+  {
+    "id": "creator-pack-biennale-yellow",
+    "version": 1,
+    "name": "Biennale Yellow",
+    "rules": {
+      "category": "Creator Pack · HyperFrames frame style · Codex-assisted",
+      "rules": "Solar yellow, parchment and deep indigo.\n\nCreator Skill Pack for Codex · skills/hyperframes-creative/frame-presets/biennale-yellow/FRAME.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-blockframe",
+    "version": 1,
+    "name": "BlockFrame",
+    "rules": {
+      "category": "Creator Pack · HyperFrames frame style · Codex-assisted",
+      "rules": "Pastel panels, heavy black outlines and hard offset shadows.\n\nCreator Skill Pack for Codex · skills/hyperframes-creative/frame-presets/blockframe/FRAME.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-blue-professional",
+    "version": 1,
+    "name": "Blue Professional",
+    "rules": {
+      "category": "Creator Pack · HyperFrames frame style · Codex-assisted",
+      "rules": "Warm cream with saturated cobalt accents.\n\nCreator Skill Pack for Codex · skills/hyperframes-creative/frame-presets/blue-professional/FRAME.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-bold-poster",
+    "version": 1,
+    "name": "Bold Poster",
+    "rules": {
+      "category": "Creator Pack · HyperFrames frame style · Codex-assisted",
+      "rules": "Poster typography with white, dark ink and tomato-red accents.\n\nCreator Skill Pack for Codex · skills/hyperframes-creative/frame-presets/bold-poster/FRAME.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-broadside",
+    "version": 1,
+    "name": "Broadside",
+    "rules": {
+      "category": "Creator Pack · HyperFrames frame style · Codex-assisted",
+      "rules": "Black and fire-orange with large typography.\n\nCreator Skill Pack for Codex · skills/hyperframes-creative/frame-presets/broadside/FRAME.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-broll-stacked-text-edit",
+    "version": 1,
+    "name": "B-Roll + Stacked Text",
+    "rules": {
+      "category": "Creator Pack · Reel workflow · Codex-assisted",
+      "rules": "Fast vertical edits with narration-matched B-roll, clean dialogue cuts and stacked captions.\n\nCreator Skill Pack for Codex · skills/broll-stacked-text-edit/SKILL.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-business-short-form-reels",
+    "version": 1,
+    "name": "Business Short-Form Reels",
+    "rules": {
+      "category": "Creator Pack · Reel workflow · Codex-assisted",
+      "rules": "Premium branded talking-head reels with a text hook, tight dialogue, word-timed captions and graphics.\n\nCreator Skill Pack for Codex · skills/business-short-form-reels/SKILL.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-capsule",
+    "version": 1,
+    "name": "Capsule",
+    "rules": {
+      "category": "Creator Pack · HyperFrames frame style · Codex-assisted",
+      "rules": "Rounded pills and cards with outlined edges.\n\nCreator Skill Pack for Codex · skills/hyperframes-creative/frame-presets/capsule/FRAME.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-cartesian",
+    "version": 1,
+    "name": "Cartesian",
+    "rules": {
+      "category": "Creator Pack · HyperFrames frame style · Codex-assisted",
+      "rules": "Warm stone tones with Playfair Display and Inter.\n\nCreator Skill Pack for Codex · skills/hyperframes-creative/frame-presets/cartesian/FRAME.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-coaching-call-clips",
+    "version": 1,
+    "name": "Coaching Call Clips",
+    "rules": {
+      "category": "Creator Pack · Long-form or clip workflow · Codex-assisted",
+      "rules": "Find and rank standalone moments from a recorded coaching call before cutting social excerpts.\n\nCreator Skill Pack for Codex · skills/coaching-call-clips/SKILL.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-cobalt-grid",
+    "version": 1,
+    "name": "Cobalt Grid",
+    "rules": {
+      "category": "Creator Pack · HyperFrames frame style · Codex-assisted",
+      "rules": "Cream paper, electric cobalt and a visible grid.\n\nCreator Skill Pack for Codex · skills/hyperframes-creative/frame-presets/cobalt-grid/FRAME.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-code-editorial",
+    "version": 1,
+    "name": "Code Editorial",
+    "rules": {
+      "category": "Creator Pack · HyperFrames frame style · Codex-assisted",
+      "rules": "Warm cream and terracotta with serif and monospace type.\n\nCreator Skill Pack for Codex · skills/hyperframes-creative/frame-presets/code-editorial/FRAME.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-coral",
+    "version": 1,
+    "name": "Coral",
+    "rules": {
+      "category": "Creator Pack · HyperFrames frame style · Codex-assisted",
+      "rules": "Coral accents and a three-surface palette.\n\nCreator Skill Pack for Codex · skills/hyperframes-creative/frame-presets/coral/FRAME.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-creative-mode",
+    "version": 1,
+    "name": "Creative Mode",
+    "rules": {
+      "category": "Creator Pack · HyperFrames frame style · Codex-assisted",
+      "rules": "Warm cream, bold ink borders and a playful editorial frame.\n\nCreator Skill Pack for Codex · skills/hyperframes-creative/frame-presets/creative-mode/FRAME.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-cutout-backdrop-reel",
+    "version": 1,
+    "name": "Cutout Backdrop Reel",
+    "rules": {
+      "category": "Creator Pack · Reel workflow · Codex-assisted",
+      "rules": "Place a cutout presenter over full-screen, idea-specific backdrops and use a fixed caption position.\n\nCreator Skill Pack for Codex · skills/cutout-backdrop-reel/SKILL.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-cutout-grid-reel",
+    "version": 1,
+    "name": "Cutout Grid Reel",
+    "rules": {
+      "category": "Creator Pack · Reel workflow · Codex-assisted",
+      "rules": "Keep the presenter centered above a four-image grid that changes with the subject.\n\nCreator Skill Pack for Codex · skills/cutout-grid-reel/SKILL.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-daisy-days",
+    "version": 1,
+    "name": "Daisy Days",
+    "rules": {
+      "category": "Creator Pack · HyperFrames frame style · Codex-assisted",
+      "rules": "Cream with turquoise, pink, butter and mint.\n\nCreator Skill Pack for Codex · skills/hyperframes-creative/frame-presets/daisy-days/FRAME.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-depth-ui-reel",
+    "version": 1,
+    "name": "Depth UI Reel",
+    "rules": {
+      "category": "Creator Pack · Reel workflow · Codex-assisted",
+      "rules": "Keep the speaker full frame with interface cards layered behind their silhouette and compact timed captions.\n\nCreator Skill Pack for Codex · skills/depth-ui-reel/SKILL.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-editorial-forest",
+    "version": 1,
+    "name": "Editorial Forest",
+    "rules": {
+      "category": "Creator Pack · HyperFrames frame style · Codex-assisted",
+      "rules": "Green, pink and cream with Source Serif 4.\n\nCreator Skill Pack for Codex · skills/hyperframes-creative/frame-presets/editorial-forest/FRAME.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-educational-youtube-editor",
+    "version": 1,
+    "name": "Educational YouTube",
+    "rules": {
+      "category": "Creator Pack · Long-form or clip workflow · Codex-assisted",
+      "rules": "Clean up long-form dialogue and support lessons with graphics and examples.\n\nCreator Skill Pack for Codex · skills/educational-youtube-editor/SKILL.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-explainer-panel-reel",
+    "version": 1,
+    "name": "Explainer Panel Reel",
+    "rules": {
+      "category": "Creator Pack · Reel workflow · Codex-assisted",
+      "rules": "Alternate speaker close-ups with a rounded speaker panel and diagrams or screenshots.\n\nCreator Skill Pack for Codex · skills/explainer-panel-reel/SKILL.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-fitted-stacked-captions",
+    "version": 1,
+    "name": "Fitted Stacked Captions",
+    "rules": {
+      "category": "Creator Pack · Caption style · Codex-assisted",
+      "rules": "Fit smaller words around one large accent word and reveal them in time with speech.\n\nCreator Skill Pack for Codex · skills/fitted-stacked-captions/SKILL.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-glass-explainer-reel",
+    "version": 1,
+    "name": "Glass Explainer Reel",
+    "rules": {
+      "category": "Creator Pack · Reel workflow · Codex-assisted",
+      "rules": "Alternate full-frame speech with a dot-grid, layered glass panels and word-timed captions.\n\nCreator Skill Pack for Codex · skills/glass-explainer-reel/SKILL.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-image-cluster-reel",
+    "version": 1,
+    "name": "Image Cluster Reel",
+    "rules": {
+      "category": "Creator Pack · Reel workflow · Codex-assisted",
+      "rules": "Use clusters of topical images above the speaker and small captions beside them.\n\nCreator Skill Pack for Codex · skills/image-cluster-reel/SKILL.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-personal-short-form-reels",
+    "version": 1,
+    "name": "Personal Short-Form Reels",
+    "rules": {
+      "category": "Creator Pack · Reel workflow · Codex-assisted",
+      "rules": "Fast creator-led reels with a hook, bold captions and relevant footage from the creator’s library.\n\nCreator Skill Pack for Codex · skills/personal-short-form-reels/SKILL.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-ranking-format",
+    "version": 1,
+    "name": "Ranking Reel",
+    "rules": {
+      "category": "Creator Pack · Reel workflow · Codex-assisted",
+      "rules": "Animate ranked items into a tier table while keeping the presenter in frame.\n\nCreator Skill Pack for Codex · skills/ranking-format/SKILL.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-split-reel",
+    "version": 1,
+    "name": "Split Reel",
+    "rules": {
+      "category": "Creator Pack · Reel workflow · Codex-assisted",
+      "rules": "Place the speaker above diagrams and animations that explain each beat.\n\nCreator Skill Pack for Codex · skills/split-reel/SKILL.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-split-screen-document-plus-animations",
+    "version": 1,
+    "name": "Split-Screen Document + Animations",
+    "rules": {
+      "category": "Creator Pack · Long-form or clip workflow · Codex-assisted",
+      "rules": "Pair document capture with a camera track, switching to full-screen presenter for emphasis.\n\nCreator Skill Pack for Codex · skills/split-screen-document-plus-animations/SKILL.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-visual-essay-reel",
+    "version": 1,
+    "name": "Visual Essay Reel",
+    "rules": {
+      "category": "Creator Pack · Reel workflow · Codex-assisted",
+      "rules": "Build a dark, brand-accented reel with the speaker below an evidence wall of relevant source material.\n\nCreator Skill Pack for Codex · skills/visual-essay-reel/SKILL.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "creator-pack-youtube-clips",
+    "version": 1,
+    "name": "YouTube Clips",
+    "rules": {
+      "category": "Creator Pack · Long-form or clip workflow · Codex-assisted",
+      "rules": "Find and rank standalone clips from a long-form source before cutting social excerpts.\n\nCreator Skill Pack for Codex · skills/youtube-clips/SKILL.md\nUse as guidance in an assisted Codex edit. Check the bundled workflow and its dependencies before rendering. Keep the selected project’s format and client requirements."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "glk-law-firm-style",
+    "version": 1,
+    "name": "GLK Law Firm Styles",
+    "rules": {
+      "category": "Legal interviews and explainers",
+      "rules": "Use for GLK interviews and legal explainers. Before editing new raw footage, ask “Would you like me to apply GLK Law Firm Styles?” unless the user has already selected it. Preserve source media, approved drafts and past revisions. Save new iterations separately and generalize confirmed feedback into a new preset version.\n\nPicture and pacing\n\n- Start with the speaker’s strongest clear thought. Trim dead air, false starts and redundant takes while preserving meaning, breaths and continuity. Favor clean cuts and restrained eased push-ins where emphasis warrants them.\n- Use stable, full-frame footage of GLK people, offices and activities that directly illustrate the current narration. Reframe for the delivery aspect ratio and check every cut for jumpy motion and unintended black edges. Return to the speaker at a natural sentence or clause boundary. Use the word timing and the note’s draft frame to determine cut points.\n- Keep brand elements consistent with white, gold #C19733 and navy #2A3643. Use a quietly animated name graphic below the caption area. Keep the product-liability callout above the head where applicable. Use the supplied GLK end card and avoid a frozen talking-head hold before it.\n\nCaptions and audio\n\n- Use Poppins Bold upright. Set short, large white phrases with a soft dark shadow and limited muted gold emphasis. Keep captions centered chest-high, immediately below the chin, within mobile safe margins and clear of the face and lower third. Check names and titles against the supplied brand assets.\n- Align each phrase and any word emphasis to the spoken words. Use gentle reveals and stable captions without visible flicker. Review the opening closely. Prefer a few purposeful highlights over decorative italic typography.\n- Keep the original dialogue forward. Use quiet warm documentary or restrained corporate instrumental music with light percussion, fades at both ends and ducking under speech. Audition the mix on headphones and phone speakers so the music is audible and speech stays clear. Use soft timed sound accents and very short warm edge leaks only where they support an edit.\n\nQA before delivery\n\n- Compare each timestamped instruction against the rendered version with a frame on either side of the edit. Keep unapplied notes open.\n- Watch the full rendered draft independently at normal playback, then step through cut points. Confirm pacing, caption sync, reading size and chin clearance, lower-third placement, crop and B-roll stability. Listen for intelligible dialogue, music balance, intentional SFX, and smooth fades. Check the first and last frames as well as all overlays and transitions.\n- Run the automated decode, timing and audio-peak checks. Investigate black and freeze findings against the intended cut and distinguish deliberate graphics holds from accidental holds. Correct issues and rerun QA before export. Confirm that the downloaded file matches the newest review render and retain approved prior drafts."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  },
+  {
+    "id": "glk-law-firm-style",
+    "version": 2,
+    "name": "GLK Law Firm Styles",
+    "rules": {
+      "category": "Legal interviews and explainers",
+      "rules": "# GLK Law Firm Styles\n\nUse for GLK interviews and legal explainers. Before editing new raw footage, ask “Would you like me to apply GLK Law Firm Styles?” unless the user has already selected it. Preserve source media, approved drafts and past revisions. Save new iterations separately and generalize confirmed feedback into a new preset version.\n\n## Picture and pacing\n\n- Start with the speaker’s strongest clear thought. Trim dead air, false starts and redundant takes while preserving meaning, breaths and continuity. Favor clean cuts and restrained eased push-ins where emphasis warrants them.\n- Use stable, full-frame footage of GLK people, offices and activities that directly illustrate the current narration. Reframe for the delivery aspect ratio and check every cut for jumpy motion and unintended black edges. Return to the speaker at a natural sentence or clause boundary. Use the word timing and the note’s draft frame to determine cut points.\n- Keep brand elements consistent with white, gold #C19733 and navy #2A3643. Use a quietly animated name graphic below the caption area. Keep the product-liability callout above the head where applicable. Use the supplied GLK end card and avoid a frozen talking-head hold before it.\n\n## Captions and audio\n\n- Use Poppins Bold upright. Set short, large white phrases with a soft dark shadow and limited muted gold emphasis. Keep captions centered chest-high, immediately below the chin, within mobile safe margins and clear of the face and lower third. Check names and titles against the supplied brand assets.\n- Align each phrase and any word emphasis to the spoken words. Use gentle reveals and stable captions without visible flicker. Review the opening closely. Prefer a few purposeful highlights over decorative italic typography.\n- Keep the original dialogue forward. Use quiet warm documentary or restrained corporate instrumental music with light percussion, fades at both ends and ducking under speech. Audition the mix on headphones and phone speakers so the music is audible and speech stays clear. Use soft timed sound accents and very short warm edge leaks only where they support an edit.\n\n## QA before delivery\n\n- Compare each timestamped instruction against the rendered version with a frame on either side of the edit. Keep unapplied notes open.\n- Watch the full rendered draft independently at normal playback, then step through cut points. Confirm pacing, caption sync, reading size and chin clearance, lower-third placement, crop and B-roll stability. Listen for intelligible dialogue, music balance, intentional SFX, and smooth fades. Check the first and last frames as well as all overlays and transitions.\n- Run the automated decode, timing and audio-peak checks. Investigate black and freeze findings against the intended cut and distinguish deliberate graphics holds from accidental holds. Correct issues and rerun QA before export. Confirm that the downloaded file matches the newest review render and retain approved prior drafts.\n\n## Delivery format and reference check\n\n- For GLK Instagram Reels, establish a 1080 × 1920 portrait timeline before editing. Review the supplied brand files, a captioned example and the project-specific cues before choosing crops, typography or transitions. Apply the brief's specific ending and graphics choices to each reel.\n- A source trim is an intake preview. A review draft needs the requested storytelling, graphics, timed captions, cuts, sound mix and mobile composition. Verify the actual rendered dimensions and square pixels, then check picture and caption timing at the opening, each insert and the ending."
+    },
+    "created": "2026-11-17T00:00:00.000Z"
+  }
+]

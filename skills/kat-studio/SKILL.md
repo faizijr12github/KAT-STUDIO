@@ -14,6 +14,6 @@ Use the launcher path in the installed skill's `workspace.json`. Invoke it as `n
 | Update KAT Studio | `update` to check, then `update --approve` after approval of the selected release. |
 | Sync KAT Studio with GitHub | `sync` to review commits and tags. Use `sync --approve` only after approval of those exact commits and the destination. |
 
-After opening, use the local browser URL from the launcher. Treat its access token as private. Start the same workspace on future requests. Consult the project's saved briefs, style, notes, and draft history before editing. Preserve approved drafts and produce new versions for revisions.
+After opening, use the local browser URL from the launcher. Treat its access token as private. Start the same workspace on future requests. Consult the project's saved briefs, style, notes, and draft history with `node <launcher> context <project-id>` before editing. Read `docs/editing.md` for the assisted editing workflow, reusable lessons and verified draft registration. Preserve approved drafts and produce new versions for revisions.
 
 Read the checkout's `docs/setup.md` before restoring a backup, rolling back, or publishing. Use GitHub for source and release history. Transfer private projects between machines using verified Studio snapshots over a private channel.

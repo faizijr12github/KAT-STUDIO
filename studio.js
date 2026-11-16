@@ -1,3 +1,5 @@
+import {galleryGroups,groupFor,artwork} from './style-gallery.js';
+
 const $ = (selector, root=document) => root.querySelector(selector);
 const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
 const content = $('#content'), dialog = $('#dialog');
@@ -97,13 +99,120 @@ function library(){
     <button class="space" data-new-client="${escape(c.id)}">New project for client</button></article>`;
   }).join('')||empty('Client profiles appear when you create projects.')}</div>`;
 }
+let styleFilter=galleryGroups[0], styleSearch='', comparedStyles=[];
+function sampleFor(style){
+  if(style.id!=='glk-law-firm-style')return null;
+  return state.drafts.filter(d=>d.timeline.editorialChecks?.style===style.name+' v'+style.version)
+    .sort((a,b)=>b.created.localeCompare(a.created))[0]||null;
+}
+function styleVisual(style,player=false){
+  const sample=sampleFor(style);
+  return sample?`<div class="style-art art-video">${player?`<video controls playsinline preload="metadata" src="${urlFor(sample.hash)}#t=1.25" aria-label="${escape(style.name)} rendered sample"></video>`:
+    `<video muted playsinline preload="metadata" src="${urlFor(sample.hash)}#t=1.25" aria-hidden="true"></video><span class="preview-play" aria-hidden="true">▶</span>`}</div>`:artwork(style,escape);
+}
+function styleSummary(style){
+  if(style.id==='glk-law-firm-style')return 'Portrait interviews with Poppins captions, navy and gold graphics, and a GLK closing card.';
+  return style.rules.rules.split(/\n\s*\n/).find(section=>section.trim()&&!section.trimStart().startsWith('#'))||style.rules.rules;
+}
+function displayStylePreview(selected){
+  const multiple=selected.length>1;
+  dialog.classList.add('style-dialog');
+  dialog.setAttribute('aria-labelledby','style-preview-heading');
+  dialog.addEventListener('close',()=>{
+    $$('video',dialog).forEach(video=>video.pause());
+    dialog.classList.remove('style-dialog');
+    dialog.removeAttribute('aria-labelledby');
+  },{once:true});
+  dialog.innerHTML=`<div class="split dialog-heading"><h2 id="style-preview-heading">${multiple?'Compare editing styles':escape(selected[0].name)}</h2>
+    <button type="button" data-close aria-label="Close style preview">×</button></div>
+    <div class="style-detail-grid ${multiple?'is-comparison':''}">${selected.map(style=>{
+      const versions=state.styles.filter(x=>x.id===style.id);
+      const projects=state.projects.filter(p=>p.config.style?.id===style.id&&p.config.style?.version===style.version);
+      return `<section class="style-detail">${styleVisual(style,true)}
+      <div class="stack style-detail-copy">
+      ${multiple?`<h3>${escape(style.name)}</h3>`:''}
+      <div class="row"><span class="pill">V${style.version}</span><span class="muted">${sampleFor(style)?'Rendered example':'Illustrative layout'}</span></div>
+      <p class="style-rules">${escape(style.rules.rules)}</p>
+      ${projects.length?`<p class="muted">Active in ${escape(projects.map(p=>p.name).join(', '))}</p>`:''}
+      <details><summary>Version history</summary><div class="stack style-history">${versions.map(x=>`<p><strong>V${x.version}</strong> · ${escape(styleSummary(x))}</p>`).join('')}</div></details>
+      <div class="row"><button class="primary" data-style-use="${escape(style.id)}">Start project</button><button data-style-edit="${escape(style.id)}">Create new version</button></div></div></section>`;
+    }).join('')}</div>`;
+  $$('[data-style-use]',dialog).forEach(button=>button.onclick=()=>{
+    const style=selected.find(s=>s.id===button.dataset.styleUse);
+    dialog.addEventListener('close',()=>wizard('',style.id+':'+style.version),{once:true});
+    dialog.close();
+  });
+  $$('[data-style-edit]',dialog).forEach(button=>button.onclick=()=>{
+    const style=selected.find(s=>s.id===button.dataset.styleEdit);
+    dialog.addEventListener('close',()=>styleDialog(style),{once:true});
+    dialog.close();
+  });
+  dialog.showModal();
+}
+function updateStyleGallery(){
+  const all=latestStyles().sort((a,b)=>galleryGroups.indexOf(groupFor(a))-galleryGroups.indexOf(groupFor(b))||a.name.localeCompare(b.name));
+  const query=styleSearch.trim().toLowerCase();
+  const items=all.filter(s=>(styleFilter===galleryGroups[0]||groupFor(s)===styleFilter)&&
+    [s.name,s.rules.category,s.rules.rules].some(value=>value?.toLowerCase().includes(query)));
+  $('#style-count').textContent=items.length+' of '+all.length+' styles';
+  $$('[data-style-filter]').forEach(btn=>btn.setAttribute('aria-pressed',String(btn.dataset.styleFilter===styleFilter)));
+  const grid=$('#style-cards');
+  grid.innerHTML=items.map(style=>{
+    const selected=comparedStyles.includes(style.id);
+    const group=groupFor(style);
+    const summary=styleSummary(style);
+    return `<article class="card style-card ${selected?'is-selected':''}">
+      <button type="button" class="style-cover" data-preview-style="${escape(style.id)}" aria-label="Preview ${escape(style.name)}">${styleVisual(style)}${sampleFor(style)?'':'<span class="preview-open" aria-hidden="true">↗</span>'}</button>
+      <div class="style-card-body"><div class="style-card-meta"><span>${escape(group)}</span><span>V${style.version}</span></div>
+      <h2>${escape(style.name)}</h2><p>${escape(summary)}</p>
+      <button type="button" class="style-compare-toggle" data-compare-style="${escape(style.id)}" aria-pressed="${selected}" aria-label="Compare ${escape(style.name)}">${selected?'✓ Added':'＋ Compare'}</button></div></article>`;
+  }).join('')||empty('No styles match your filters.');
+  const compare=$('#style-compare');
+  compare.textContent='Compare ('+comparedStyles.length+'/2)';
+  compare.disabled=comparedStyles.length!==2;
+  $('#style-selection').textContent=comparedStyles.map(id=>all.find(s=>s.id===id)?.name).filter(Boolean).join(' + ');
+  $('#style-clear').hidden=!comparedStyles.length;
+  if(matchMedia('(hover: hover) and (prefers-reduced-motion: no-preference)').matches){
+    $$('.style-cover video',grid).forEach(video=>{
+      const button=video.closest('button');
+      button.onpointerenter=e=>{if(e.pointerType==='mouse')video.play().catch(()=>{});};
+      button.onpointerleave=()=>video.pause();
+    });
+  }
+}
 function styles(){
-  content.innerHTML=title('Editing styles','Use saved rules as a starting point in new projects.','<button class="primary" id="new-style">+ New style</button>')+
-  `<div class="cards">${latestStyles().map(s=>`<article class="card"><div class="split"><h2>${escape(s.name)}</h2><span class="pill">V${s.version}</span></div>
-  <p class="muted">${escape(s.rules.category)}</p><p class="space style-rules">${escape(s.rules.rules)}</p>
-  <details class="space"><summary>Version history</summary><div class="stack">${state.styles.filter(x=>x.id===s.id).map(x=>`<p class="style-rules">V${x.version} · ${escape(x.rules.rules)}</p>`).join('')}</div></details>
-  <button class="space" data-style="${escape(s.id)}">Create new version</button></article>`).join('')||empty('Create a style to reuse its editing rules across projects.')}</div>`;
+  content.innerHTML=`<header class="gallery-header">
+    <div><h1>Editing <em>styles</em></h1><p class="muted">Preview a style, compare two, or start a project with a preset.</p></div>
+    <button class="primary" id="new-style">＋ New style</button>
+  </header>
+  <div class="gallery-toolbar">
+    <div class="style-filters" role="group" aria-label="Filter styles">
+      ${galleryGroups.map(group=>`<button type="button" data-style-filter="${escape(group)}" aria-pressed="false">${escape(group)}</button>`).join('')}
+    </div>
+    <input id="style-search" type="search" aria-label="Search editing styles" placeholder="Search styles" value="${escape(styleSearch)}">
+  </div>
+  <div class="split gallery-status"><span id="style-count" role="status"></span><div class="row">
+    <span id="style-selection"></span><button class="quiet" id="style-clear" hidden>Clear</button><button id="style-compare" disabled>Compare (0/2)</button>
+  </div></div>
+  <div class="style-grid" id="style-cards"></div>`;
   $('#new-style').onclick=()=>styleDialog();
+  $('#style-search').oninput=e=>{styleSearch=e.target.value;updateStyleGallery();};
+  $$('.style-filters button').forEach(button=>button.onclick=()=>{styleFilter=button.dataset.styleFilter;updateStyleGallery();});
+  $('#style-clear').onclick=()=>{comparedStyles=[];updateStyleGallery();$('#style-search').focus();};
+  $('#style-compare').onclick=()=>displayStylePreview(comparedStyles.map(id=>latestStyles().find(s=>s.id===id)).filter(Boolean));
+  $('#style-cards').onclick=e=>{
+    const preview=e.target.closest('[data-preview-style]');
+    if(preview)return displayStylePreview([latestStyles().find(s=>s.id===preview.dataset.previewStyle)]);
+    const button=e.target.closest('[data-compare-style]');
+    if(!button)return;
+    const id=button.dataset.compareStyle;
+    if(comparedStyles.includes(id))comparedStyles=comparedStyles.filter(value=>value!==id);
+    else if(comparedStyles.length<2)comparedStyles.push(id);
+    else return notice('Clear one selected style before adding another.');
+    updateStyleGallery();
+    $$('[data-compare-style]').find(b=>b.dataset.compareStyle===id)?.focus({preventScroll:true});
+  };
+  updateStyleGallery();
 }
 function jobMarkup(job){
   const name=state.projects.find(p=>p.id===job.project)?.name||'Project';
@@ -117,7 +226,11 @@ function queue(){
   `<div class="stack" id="job-list">${state.jobs.map(jobMarkup).join('')||empty('Rendered previews and confirmed exports will appear here.')}</div>`;
 }
 function display(){
-  $$('.nav button').forEach(btn=>btn.classList.toggle('active',btn.dataset.view===view||(view==='workspace'&&btn.dataset.view==='projects')));
+  $$('.nav button').forEach(btn=>{
+    const active=btn.dataset.view===view||(view==='workspace'&&btn.dataset.view==='projects');
+    btn.classList.toggle('active',active);
+    if(active)btn.setAttribute('aria-current','page');else btn.removeAttribute('aria-current');
+  });
   ({projects:dashboard,clients:library,styles,queue,workspace})[view]();
 }
 function setStage(next,draft=null){
@@ -134,7 +247,7 @@ function openProject(key,next='setup'){
   setStage(next);
 }
 function setView(next){
-  view=next;history.replaceState(null,'',location.pathname);display();
+  view=next;history.replaceState(null,'',location.pathname+(next==='projects'?'':'#'+next));display();
 }
 function styleDialog(source){
   dialog.innerHTML=`<h2>${source?'Create style version':'New editing style'}</h2>
@@ -150,7 +263,7 @@ function styleDialog(source){
   });
 }
 const platforms=['Instagram Reels','TikTok','YouTube Shorts','YouTube Long Form','LinkedIn','Facebook','Paid Advertisements'];
-function wizard(clientId=''){
+function wizard(clientId='',styleKey=''){
   const known=client(clientId);
   const fields=[
     ['Client',`<label>Client library<select name="client" id="client-input"><option value="">New client</option>${state.clients.map(c=>`<option value="${c.id}" ${c.id===clientId?'selected':''}>${escape(c.name)}</option>`).join('')}</select></label><label>Client name<input name="clientName" value="${escape(known?.name)}"></label><label>Business, products, customers and selling points<textarea name="description">${escape(known?.profile.description)}</textarea></label><label>Website and social links<textarea name="links" placeholder="One link per line">${escape(known?.profile.links?.join('\n'))}</textarea></label>`],
@@ -158,7 +271,7 @@ function wizard(clientId=''){
     ['Brand',`<label>Colors, fonts, voice and prohibited elements<textarea name="brand">${escape(known?.profile.brand)}</textarea></label><p class="muted">You can import brand PDFs, logos, and screenshots in Project Assets.</p>`],
     ['Brief','<label>Objective, audience, duration, story, hook, CTA and pacing<textarea name="brief"></textarea></label>'],
     ['References','<label>URLs and what to take from each reference<textarea name="references" placeholder="Link and notes"></textarea></label><p class="muted">Import reference images and clips in the workspace.</p>'],
-    ['Style',`<p class="muted" id="glk-style-prompt" hidden>Would you like to apply GLK Law Firm Styles?</p><label>Editing style<select name="style"><option value="">Choose later</option><option value="none">Continue without saved style</option>${latestStyles().map(s=>`<option value="${s.id}:${s.version}">${escape(s.name)} · V${s.version}</option>`).join('')}</select></label>`],
+    ['Style',`<p class="muted" id="glk-style-prompt" hidden>Would you like to apply GLK Law Firm Styles?</p><label>Editing style<select name="style"><option value="">Choose later</option><option value="none">Continue without saved style</option>${latestStyles().map(s=>`<option value="${s.id}:${s.version}">${escape(s.name)} · V${s.version}</option>`).join('')}</select></label><div class="active-style-preview" id="wizard-style-preview"></div>`],
     ['Create', '<label>Project name<input name="name" required placeholder="Campaign or video title"></label><p class="muted" id="wizard-summary"></p>']
   ];
   dialog.innerHTML=`<p class="step-label" id="step-label"></p><h2 id="wizard-heading"></h2><form id="project-form" class="space">
@@ -166,17 +279,24 @@ function wizard(clientId=''){
   <div class="dialog-foot"><div class="row"><button type="button" data-close>Cancel</button><button type="button" id="prev-step">Back</button></div>
   <button type="button" class="primary" id="next-step">Next</button><button type="submit" class="primary" id="create-project">Create project</button></div></form>`;
   let step=0;const form=$('#project-form');
+  if(styleKey)form.elements.style.value=styleKey;
+  const updateStylePreview=()=>{
+    const style=state.styles.find(s=>s.id+':'+s.version===form.elements.style.value);
+    $('#wizard-style-preview').innerHTML=style?`${styleVisual(style)}<p class="muted">${escape(styleSummary(style))}</p>`:'';
+  };
+  form.elements.style.onchange=updateStylePreview;
   function show(){
     $$('.form-step',form).forEach((el,i)=>el.hidden=i!==step);
     $('#step-label').textContent='STEP '+(step+1)+' OF '+fields.length;
     $('#wizard-heading').textContent=fields[step][0];
     $('#prev-step').disabled=!step;$('#next-step').hidden=step===6;$('#create-project').hidden=step!==6;
     $('#glk-style-prompt').hidden=!requiresStyleChoice();
-    if(step===6)$('#wizard-summary').textContent=[form.elements.clientName.value,form.elements.format.value,...new FormData(form).getAll('platforms')].filter(Boolean).join(' · ');
+    if(step===5)updateStylePreview();
+    if(step===6)$('#wizard-summary').textContent=[form.elements.clientName.value,form.elements.format.value,form.elements.style.selectedOptions[0]?.textContent,...new FormData(form).getAll('platforms')].filter(Boolean).join(' · ');
   }
   function requiresStyleChoice(){
     const chosen=client(form.elements.client.value)?.name||form.elements.clientName.value;
-    return /^GLK Law Firm$/i.test(chosen.trim())&&latestStyles().some(s=>s.id==='glk-law-firm-style');
+    return /^GLK(?: Law Firm)?$/i.test(chosen.trim())&&latestStyles().some(s=>s.id==='glk-law-firm-style');
   }
   $('#client-input').onchange=e=>{
     const c=client(e.target.value);
@@ -210,6 +330,74 @@ function noteMarkup(note,fps){
   ${note.attachments.map(a=>`<a href="${urlFor(a.hash,a.name)}">${/\.(png|jpe?g|webp)$/i.test(a.name)?`<img src="${urlFor(a.hash)}" alt="${escape(a.name)}">`:escape(a.name)}</a>`).join('')}
   <label class="note-status">Status <select data-note-status="${note.id}">${options(statuses,note.status)}</select></label></article>`;
 }
+function sourcePreview(d){
+  return d.timeline.kind==='source-preview'||/^Trim to /.test(d.summary);
+}
+
+function contextMarkup(ctx){
+  const style=ctx.style;
+  return `<div class="context-grid">
+    <section><h3>Instructions</h3>
+      ${ctx.missingAssets.length?`<p class="invalid">Missing: ${ctx.missingAssets.map(escape).join(", ")}</p>`:''}
+      <p class="context-text">${escape(ctx.project.config.brief||'No project brief saved.')}</p>
+      <details><summary>Brand and references</summary><p class="context-text">${escape(ctx.project.config.brand||ctx.client.brand)}</p><p class="context-text">${escape(ctx.project.config.references||(ctx.client.links||[]).join('\n'))}</p></details>
+      ${style?`<details><summary>${escape(style.name)} v${style.version} rules</summary><p class="context-text">${escape(style.rules.rules)}</p></details>`:''}
+    </section>
+    <section><h3>Revision history</h3>
+      ${ctx.drafts.map(d=>`<article class="context-record"><strong>V${d.version}${d.approved?' · Approved':''}</strong><p>${escape(d.summary)}</p>${d.checks.style?`<small>${escape(d.checks.style)}${d.checks.endScreenSimilarity!=null?' · End screen verified':''}</small>`:''}</article>`).join('')||empty('Drafts will appear here.')}
+      ${ctx.notes.map(n=>`<article class="context-record"><strong>V${n.version} · ${escape(n.status)}</strong><p>${escape(n.body)}</p></article>`).join('')}
+    </section>
+    <section><h3>Learned preferences</h3>
+      ${ctx.learning.filter(l=>l.source!=='initial-brief').slice().reverse().map(l=>`<article class="context-record"><strong>${escape(l.kind)} · ${l.scope==='client'?'Client':'Project'}</strong><p class="context-text">${escape(l.text)}</p></article>`).join('')||empty('Save a project instruction or a reusable client preference.')}
+    </section>
+  </div>`;
+}
+
+async function readContext(p){
+  return request('editing-context?'+new URLSearchParams({project:p.id}));
+}
+async function prepareEdit(p){
+  const ctx=await readContext(p);
+  const brief={...ctx,drafts:ctx.drafts.map(({version,summary,approved})=>({version,summary,approved}))};
+  await navigator.clipboard.writeText(
+    'Create a new editorial draft for this KAT Studio project. Read its current context with edit-context.mjs before editing and register the verified render through the same CLI. Follow newer explicit project directions and the selected style version. Account for earlier feedback and approved decisions.\n\n'+JSON.stringify(brief,null,2));
+  notice('Editing brief copied with saved instructions, style and assets.');
+}
+function compareDrafts(current){
+  const previous=drafts().find(d=>d.version<current.version)||drafts().find(d=>d.id!==current.id);
+  const choices=chosen=>drafts().map(d=>`<option value="${d.id}" ${d.id===chosen?'selected':''}>V${d.version}${sourcePreview(d)?' · Source preview':''}</option>`).join('');
+  const panel=(side,d)=>`<section class="stack"><label>${side}<select aria-label="${side}" class="compare-choice">${choices(d.id)}</select></label><video preload="metadata" playsinline muted src="${urlFor(d.hash)}"></video><p class="muted compare-summary">${escape(d.summary)}</p></section>`;
+  dialog.classList.add('compare-dialog');
+  dialog.addEventListener('close',()=>{dialog.classList.remove('compare-dialog');dialog.querySelectorAll('video').forEach(v=>v.pause());},{once:true});
+  dialog.innerHTML=`<h2>Compare drafts</h2><div class="compare-grid space">${panel('Earlier draft',previous)}${panel('Current draft',current)}</div>
+    <div class="row space"><button id="compare-play">Play both</button><label class="row">Preview time <input id="compare-time" type="range" min="0" step=".033" value="0"></label><label class="row"><input id="compare-audio" type="checkbox"> Current draft audio</label></div>
+    <div class="dialog-foot"><button data-close>Close</button></div>`;
+  const videos=$$('video',dialog), play=$('#compare-play'), seek=$('#compare-time');
+  function refreshRange(){
+    seek.max=Math.max(0,...videos.map(v=>Number.isFinite(v.duration)?v.duration:0));
+  }
+  function seekBoth(time){for(const v of videos)if(Number.isFinite(v.duration))v.currentTime=Math.min(time,v.duration);}
+  videos.forEach(v=>v.onloadedmetadata=refreshRange);
+  videos[1].ontimeupdate=()=>{if(!videos[1].paused)seek.value=videos[1].currentTime;};
+  videos[1].onended=()=>{videos[0].pause();play.textContent='Play both';};
+  seek.oninput=()=>seekBoth(Number(seek.value));
+  play.onclick=guard(async()=>{
+    if(videos.some(v=>!v.paused)){videos.forEach(v=>v.pause());play.textContent='Play both';return;}
+    if(videos[1].ended)seek.value=0;
+    seekBoth(Number(seek.value));
+    await Promise.all(videos.map(v=>v.play()));
+    play.textContent='Pause both';
+  });
+  $('#compare-audio').onchange=e=>{videos[1].muted=!e.target.checked;};
+  $$('.compare-choice',dialog).forEach((select,i)=>{select.onchange=()=>{
+    videos.forEach(v=>v.pause());play.textContent='Play both';seek.value=0;
+    const draft=drafts().find(d=>d.id===select.value);
+    videos[i].src=urlFor(draft.hash);seekBoth(0);
+    $$('.compare-summary',dialog)[i].textContent=draft.summary;
+  };});
+  dialog.showModal();
+}
+
 function workspace(){
   const p=project();if(!p){setView('projects');return;}
   if(stage==='review'&&!selectedDraft()){setStage('setup');return;}
@@ -217,27 +405,39 @@ function workspace(){
   const d=review?selectedDraft():null, a=review?null:selectedAsset();
   const first=drafts().find(item=>item.version===1);
   const videos=assets().filter(item=>item.mime.startsWith('video/')&&item.metadata.duration>0);
-  const primarySource=videos.find(item=>/\/raw video\//i.test(item.name))||videos.find(item=>item.category==='Raw Footage')||videos[0];
-  const activePreview=jobs().find(job=>job.kind==='Preview'&&job.state==='running');
+  const sourceVideos=videos.filter(item=>item.category==='Raw Footage');
+  const primarySource=sourceVideos.find(item=>/\/raw video\//i.test(item.name))||sourceVideos[0];
+  const activePreview=jobs().find(job=>['Preview','Source Preview'].includes(job.kind)&&job.state==='running');
   const source=a||d, playable=source?.mime?.startsWith('video/');
   const info=source?.metadata||{}, fps=info.fps||30, endFrame=Math.max(0,(info.frames||Math.ceil((info.duration||0)*fps))-1);
   const notes=!a&&d?state.notes.filter(n=>n.draft===d.id):[];
   const style=state.styles.find(s=>s.id===p.config.style?.id&&s.version===p.config.style?.version);
-  const actionButton=d&&!a ? (d.approved?'<button class="primary" id="export">Export approved draft</button>':'<button class="primary" id="approve">Approve draft</button>'):'';
+  const actionButton=d&&!a&&!sourcePreview(d) ? (d.approved?'<button class="primary" id="export">Export approved draft</button>':'<button class="primary" id="approve">Approve draft</button>'):'';
   const stageActions=review?'<button id="back-setup">← Project Setup</button>'+actionButton+'<button class="primary" id="download-latest">Download Latest Draft</button>':
     first?'<button id="open-latest">Open latest draft</button>':'';
   content.innerHTML=`<div class="eyebrow stage-label">${review?'02 · Draft Review':'01 · Project Setup'}</div>`+
-    title(p.name,[client(p.client)?.name,p.config.format,style?.name].filter(Boolean).join(' · '),stageActions)+
+    title(p.name,[client(p.client)?.name,p.config.format,style&&style.name+' v'+style.version].filter(Boolean).join(' · '),stageActions)+
+  `<div class="row project-tools"><button id="show-context" aria-expanded="false">Instructions and history</button>
+  <button id="prepare-edit">Prepare edit for Codex</button>
+  ${review&&drafts().length>1?'<button id="compare-drafts">Compare drafts</button>':''}
+  ${!review?'<button id="change-style">Change active style</button>':''}</div>
+  <section class="pane context-pane" id="editing-context" hidden>
+    <h2>Project instructions and learning</h2><div class="pad" id="context-body" aria-live="polite"></div>
+    <form id="learning-form" class="pad stack"><label>Instruction or preference<textarea name="text" required maxlength="8000"></textarea></label>
+    <div class="row"><label>Applies to<select name="scope"><option value="project">This project</option><option value="client">All projects for this client</option></select></label><button class="primary">Save guidance</button></div></form>
+  </section>`+
   `<div class="workspace ${review?'review-workspace':'setup-workspace'}">
     ${!review?`<section class="pane" id="asset-pane"><h2>Project Assets <small class="muted">${assets().length} files</small></h2><div class="pad">
     <div class="import-area stack"><h3>Add your project media</h3><p class="muted">Import a project folder to preserve its structure, or add individual files. You can also drop files here.</p>
-    <label>Import as<select id="category">${options(state.categories,'Raw Footage')}</select></label>
+    <label>Import as<select id="category">${options(['Auto',...state.categories],'Auto')}</select></label>
     <div class="row"><button id="pick-folder" class="primary">Choose project folder</button><button id="pick-files">Add files</button></div>
     <input type="file" id="files" multiple hidden><input type="file" id="folder" webkitdirectory multiple hidden></div>
-    <div class="asset-list space">${assets().map(item=>`<button data-asset="${item.id}" class="asset ${item.id===assetId?'selected':''}">${escape(item.name)}<small>${escape(item.category)}${item.metadata.duration?' · '+item.metadata.duration.toFixed(1)+'s':''}</small></button>`).join('')||'<p class="muted">No source media imported.</p>'}</div>
+    <div id="import-progress" class="stack" hidden><span id="import-status" role="status"></span><progress id="import-meter"></progress></div>
+    <label>Filter assets<select id="asset-filter">${options(['All assets',...new Set(assets().map(a=>a.category))],'All assets')}</select></label>
+    <div class="asset-list space">${assets().map(item=>`<button data-asset="${item.id}" data-category="${escape(item.category)}" class="asset ${item.id===assetId?'selected':''}">${escape(item.name)}<small>${escape(item.category)}${item.metadata.duration?' · '+item.metadata.duration.toFixed(1)+'s':''}</small></button>`).join('')||'<p class="muted">No source media imported.</p>'}</div>
     <details class="space"><summary>Project brief</summary><p>${escape(p.config.brief)||'No brief added.'}</p>${p.config.brand?`<p>${escape(p.config.brand)}</p>`:''}${p.config.references?`<p>${escape(p.config.references)}</p>`:''}${style?`<p class="style-rules">${escape(style.rules.rules)}</p>`:''}</details>
     </div></section>`:''}
-    <section class="pane preview-pane"><div class="pane-title split"><h2>${review?'Draft '+d.version+' preview':'Source preview'}</h2>
+    <section class="pane preview-pane"><div class="pane-title split"><h2>${review?(sourcePreview(d)?'Source preview · V'+d.version:'Draft '+d.version+' preview'):'Source preview'}</h2>
     <div class="row">${review?`<select id="draft-select" aria-label="Draft version">${drafts().map(item=>`<option value="${item.id}" ${!a&&d?.id===item.id?'selected':''}>V${item.version}${item.approved?' · Approved':''}</option>`).join('')}</select>`:''}</div></div>
     <div class="stage" id="stage">
     ${playable?`<video id="video" preload="metadata" playsinline src="${urlFor(source.hash)}"></video><div id="guide" class="guide" hidden></div>`:a?.mime.startsWith('image/')?`<img style="max-width:100%;max-height:480px" src="${urlFor(a.hash)}" alt="${escape(a.name)}">`:a?.mime.startsWith('audio/')?`<audio controls src="${urlFor(a.hash)}"></audio>`:a?`<a href="${urlFor(a.hash,a.name)}">Download source file</a>`:empty('Select an imported asset to preview it here.')}</div>
@@ -254,12 +454,45 @@ function workspace(){
     <label>Images or clips<input type="file" name="files" accept="image/*,video/*" multiple></label>
     <button class="primary">Add note</button></form><div><div class="notes-list">${notes.map(n=>noteMarkup(n,fps)).join('')}</div>${d.canRevise?`<button class="primary space" id="submit-revision" ${notes.some(n=>n.status==='Pending')&&!jobs().some(j=>j.state==='running')?'':'disabled'}>Submit to Codex</button>`:notes.length?'<button class="space" id="copy-review">Copy review for Codex</button>':''}</div></div></section>`:''}
   </div>
-  ${!review?`<section class="pane setup-footer space"><div><h2>Ready for Draft 1?</h2>
-  <p class="muted">${first?'Open the existing first draft for review.':primarySource?'Create a source preview from the selected footage.':'Import raw footage to start Draft 1.'}</p></div>
-  <div class="setup-next">${!first&&videos.length?`<label for="draft-source" class="muted">Source video</label><select id="draft-source">${videos.map(item=>`<option value="${item.id}" ${item.id===((a?.mime.startsWith('video/')?a:primarySource)?.id)?'selected':''}>${escape(item.name)}</option>`).join('')}</select>`:''}
-  <button class="primary" id="start-draft" ${!first&&(!primarySource||activePreview)?'disabled':''}>${activePreview?'Preparing Draft 1…':'Start Draft 1'}</button></div></section>`:''}
+  ${!review?`<section class="pane setup-footer space"><div><h2>Source preview</h2>
+  <p class="muted">${first?'Open the original version or prepare a new edit with the saved project context.':primarySource?'Check framing and dialogue before preparing the edit.':'Import raw footage to preview it.'}</p></div>
+  <div class="setup-next">${!first&&sourceVideos.length?`<label for="draft-source" class="muted">Source video</label><select id="draft-source">${sourceVideos.map(item=>`<option value="${item.id}" ${item.id===((a?.category==='Raw Footage'?a:primarySource)?.id)?'selected':''}>${escape(item.name)}</option>`).join('')}</select>`:''}
+  <button class="primary" id="start-draft" ${!first&&(!primarySource||activePreview)?'disabled':''}>${activePreview?'Preparing preview…':first?'Open original version':'Create source preview'}</button></div></section>`:''}
   <div class="space stack" id="project-jobs">${jobs().filter(job=>job.state==='running').map(jobMarkup).join('')}</div>`;
   bindWorkspace(p,d,a,info,fps,endFrame);
+  const updateContext=async()=>{$('#context-body').innerHTML=contextMarkup(await readContext(p));};
+  $('#show-context').onclick=guard(async e=>{
+    const panel=$('#editing-context');
+    panel.hidden=!panel.hidden;
+    e.target.setAttribute('aria-expanded',String(!panel.hidden));
+    if(!panel.hidden){$('#context-body').textContent='Loading project context…';await updateContext();}
+  });
+  $('#learning-form').onsubmit=guard(async e=>{
+    e.preventDefault();
+    const form=e.currentTarget, input=Object.fromEntries(new FormData(form));
+    await request('learning',{...input,project:p.id});form.reset();await updateContext();notice('Guidance saved.');
+  });
+  $('#prepare-edit').onclick=guard(()=>prepareEdit(p));
+  if($('#compare-drafts'))$('#compare-drafts').onclick=()=>compareDrafts(d);
+  if($('#change-style'))$('#change-style').onclick=()=>{
+    dialog.innerHTML=`<h2>Active editing style</h2><form id="active-style-form" class="fields space">
+      <label>Style version<select name="style"><option value="">No style selected</option>
+      ${state.styles.map(x=>`<option value="${x.id}:${x.version}" ${x.id===style?.id&&x.version===style?.version?'selected':''}>${escape(x.name)} v${x.version}</option>`).join('')}</select></label><div class="active-style-preview" id="active-style-preview"></div>
+      <div class="dialog-foot"><button type="button" data-close>Cancel</button><button class="primary">Apply style</button></div></form>`;
+    dialog.showModal();
+    const select=$('#active-style-form select');
+    const preview=()=>{
+      const chosen=state.styles.find(s=>s.id+':'+s.version===select.value);
+      $('#active-style-preview').innerHTML=chosen?`${styleVisual(chosen)}<p class="muted">${escape(styleSummary(chosen))}</p>`:'';
+    };
+    select.onchange=preview;
+    preview();
+    $('#active-style-form').onsubmit=guard(async e=>{
+      e.preventDefault();
+      await request('project-style',{project:p.id,style:new FormData(e.currentTarget).get('style')});
+      dialog.close();await refresh();notice('Active style saved.');
+    });
+  };
   if(review)$('#download-latest').onclick=guard(()=>downloadLatestDraft(p.id));
 }
 async function downloadLatestDraft(project){
@@ -293,14 +526,15 @@ async function downloadLatestDraft(project){
     throw error;
   }finally{button.disabled=false;}
 }
-async function upload(route,files,query){
+async function upload(route,files,query,onProgress=()=>{}){
   const failures=[];
-  for(const file of files){
+  for(const [index,file] of files.entries()){
     const params=new URLSearchParams({...query,name:file.webkitRelativePath||file.name});
     try{
       const result=await fetch('api/'+route+'?'+params,{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:file});
       if(!result.ok)throw Error((await result.json()).error);
     }catch(error){failures.push(file.name+' · '+error.message);}
+    onProgress(index+1,files.length);
   }
   return failures;
 }
@@ -336,10 +570,18 @@ function bindWorkspace(p,d,a,info,fps,last){
   }
   const pane=$('#asset-pane');
   if(pane){
+    let importing=false;
+    $('#asset-filter').onchange=e=>$$('[data-asset]',pane).forEach(item=>{item.hidden=e.target.value!=='All assets'&&item.dataset.category!==e.target.value;});
     const doImport=guard(async files=>{
-      if(!files.length)return;
+      if(!files.length||importing)return;
+      importing=true;
+      const progress=$('#import-progress',pane), meter=$('#import-meter',pane), status=$('#import-status',pane);
+      progress.hidden=false;meter.max=files.length;meter.value=0;status.textContent='Scanning project files…';
       notice('Importing '+files.length+' file(s)…');
-      const failures=await upload('import',files,{project:p.id,category:$('#category').value});
+      let failures;
+      try{failures=await upload('import',files,{project:p.id,category:$('#category').value},(count,total)=>{
+        meter.value=count;status.textContent=count+' of '+total+' files processed';
+      });}finally{importing=false;progress.hidden=true;}
       await refresh();
       notice(failures.length?failures.join(' · '):'Media imported.',Boolean(failures.length));
     });
@@ -364,7 +606,7 @@ function bindWorkspace(p,d,a,info,fps,last){
       const result=await request('preview',{project:p.id,asset:sourceId,first:true});
       if(result.draft){await refresh(false);setStage('review',drafts().find(item=>item.id===result.draft));return;}
       pendingPreview=result.job;
-      await refresh(false);updateJobs();notice('Preparing the first review draft.');
+      await refresh(false);updateJobs();notice('Preparing the source preview.');
     }catch(error){startDraft.disabled=false;startDraft.textContent='Start Draft 1';throw error;}
   });
   if($('#approve'))$('#approve').onclick=guard(async()=>{await request('approve',{project:p.id,draft:d.id});await refresh();notice('Draft approved. Its version is preserved.');});
@@ -391,6 +633,7 @@ function bindWorkspace(p,d,a,info,fps,last){
   if(copyReview)copyReview.onclick=guard(async()=>{
     const notes=state.notes.filter(n=>n.draft===d.id);
     const review=[
+      "Read the current KAT Studio editing context before applying these notes, then register the verified render.",
       "Please review these KAT Studio notes and create a new draft for "+p.name+".",
       "Project ID: "+p.id+" | Draft V"+d.version+" | "+fps+" fps",
       p.config.brief ? "Brief: "+p.config.brief : "",
@@ -498,11 +741,11 @@ async function poll(){
   try{
     const before=state.jobs;
     await refresh(false);
-    const completed=state.jobs.find(job=>job.project===projectId&&['Preview','Revision'].includes(job.kind)&&
+    const completed=state.jobs.find(job=>job.project===projectId&&['Preview','Source Preview','Revision'].includes(job.kind)&&
       (job.id===pendingPreview||before.some(old=>old.id===job.id&&old.state==='running'))&&job.state!=='running');
     if(view==='workspace'&&completed){
       pendingPreview=null;
-      if(completed.state==='complete'){setStage('review',drafts().find(item=>item.id===completed.draft));notice(completed.kind==='Revision'?'The revised draft is ready.':'Draft 1 is ready to review.');}
+      if(completed.state==='complete'){setStage('review',drafts().find(item=>item.id===completed.draft));notice(completed.kind==='Revision'?'The revised draft is ready.':'Source preview is ready.');}
       else{display();notice(completed.detail,true);}
     }else if(['workspace','queue'].includes(view)&&JSON.stringify(before)!==JSON.stringify(state.jobs))updateJobs();
     $('#connection').textContent='Local studio';
@@ -513,7 +756,9 @@ try{
   await refresh(false);
   const [encodedKey,screen]=location.hash.slice(1).split('/');
   const projectKey=decodeURIComponent(encodedKey);
-  if(state.projects.some(p=>p.id===projectKey))openProject(projectKey,screen==='review'?'review':'setup');else display();
+  if(state.projects.some(p=>p.id===projectKey))openProject(projectKey,screen==='review'?'review':'setup');
+  else if(['styles','clients','queue'].includes(projectKey))setView(projectKey);
+  else display();
   $('#connection').textContent='Local studio';
   setTimeout(poll,1800);
 }catch(error){content.innerHTML=empty(error.message);$('#connection').textContent='Studio offline';}

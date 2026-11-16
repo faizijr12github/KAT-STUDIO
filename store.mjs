@@ -11,6 +11,7 @@ export function openStore(directory) {
   db.exec(`
     PRAGMA journal_mode=WAL;
     PRAGMA foreign_keys=ON;
+    PRAGMA busy_timeout=5000;
     CREATE TABLE IF NOT EXISTS clients(id TEXT PRIMARY KEY, name TEXT NOT NULL, profile TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS styles(id TEXT NOT NULL, version INTEGER NOT NULL, name TEXT NOT NULL, rules TEXT NOT NULL, created TEXT NOT NULL, PRIMARY KEY(id,version));
     CREATE TABLE IF NOT EXISTS projects(id TEXT PRIMARY KEY, name TEXT NOT NULL, client TEXT NOT NULL REFERENCES clients(id), config TEXT NOT NULL, created TEXT NOT NULL);
@@ -20,6 +21,14 @@ export function openStore(directory) {
     CREATE TABLE IF NOT EXISTS notes(id TEXT PRIMARY KEY, draft TEXT NOT NULL REFERENCES drafts(id), start_frame INTEGER NOT NULL, end_frame INTEGER NOT NULL, body TEXT NOT NULL, priority TEXT NOT NULL, status TEXT NOT NULL, link TEXT, created TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS attachments(note TEXT NOT NULL REFERENCES notes(id), hash TEXT NOT NULL REFERENCES media(hash), name TEXT NOT NULL, PRIMARY KEY(note,hash));
     CREATE TABLE IF NOT EXISTS jobs(id TEXT PRIMARY KEY, project TEXT NOT NULL REFERENCES projects(id), draft TEXT REFERENCES drafts(id), kind TEXT NOT NULL, state TEXT NOT NULL, progress REAL NOT NULL, frames INTEGER NOT NULL DEFAULT 0, total INTEGER NOT NULL, detail TEXT NOT NULL, hash TEXT REFERENCES media(hash), created TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS learning(
+      id TEXT PRIMARY KEY, client TEXT NOT NULL REFERENCES clients(id),
+      project TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      scope TEXT NOT NULL CHECK(scope IN ('project','client')),
+      kind TEXT NOT NULL, text TEXT NOT NULL, source TEXT, checks TEXT NOT NULL, created TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS learning_client_project ON learning(client,project);
+    CREATE UNIQUE INDEX IF NOT EXISTS learning_event ON learning(project,kind,source) WHERE source IS NOT NULL;
     CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
   `);
   if (!db.prepare('PRAGMA table_info(projects)').all().some(column => column.name === 'deleted_at')) {

@@ -24,7 +24,7 @@ function command(executable,args,control,{cwd,input='',env=process.env,timeout=2
     const child=spawn(executable,args,{cwd,env,detached:true,stdio:['pipe','ignore','pipe']});
     let stderr='';
     child.stderr.on('data',chunk=>{stderr=(stderr+chunk).slice(-3500);});
-    const stop=()=>{if(child.pid)try{if(process.platform==='win32')child.kill();else process.kill(-child.pid,'SIGTERM');}catch{}};
+    const stop=()=>{if(child.pid)try{process.kill(-child.pid,'SIGTERM');}catch{}};
     control.stop=stop;
     const timer=setTimeout(stop,timeout);
     child.stdin.on('error',()=>{});child.stdin.end(input);
@@ -87,7 +87,7 @@ function resolveSentenceCue(note,words,settings){
   return {id:note.id,applied:true,reason:'Extended the office B-roll through “Gersowitz, Libo & Korek” to the transcript boundary at '+(frame/30).toFixed(2)+' seconds.'};
 }
 
-export async function reviseIntroduction({db,app,dir,draft,notes,control,onStage}){
+export async function reviseIntroduction({db,app,dir,draft,notes,context,control,onStage}){
   const sources={};
   for(const [key,name] of Object.entries(sourceNames)){
     const source=db.get('SELECT m.file FROM assets a JOIN media m ON m.hash=a.hash WHERE a.project=? AND a.name=?',draft.project,name);
@@ -110,6 +110,11 @@ export async function reviseIntroduction({db,app,dir,draft,notes,control,onStage
   const prompt=`Interpret these timestamped revision notes for this specific GLK Law interview. Return only JSON with settings and results. Do not use tools or execute code.
 Allowed settings: animateLowerThird (smooth fade/rise on name graphic), lowerThirdYOffset (integer 0–120 pixels down, 101 preferred for a lower position), officeFullScreen (first office insert only), officeEndFrame (integer 230–275 at 30fps; 266 ends after the firm name), mentoringStartFrame (integer 720–765 at 30fps; 734 covers the 24.47 second point), mentoringEndFrame (integer 780–870 at 30fps; exclusive cut point back to Jay), captionSize (integer 26–50), stableCaptions (fixed lower chest position, no caption flicker in the short-phrase style), showCallout (products liability explanation), bannerAbove (ease the banner on and off above the head), cleanEnding (remove the frozen hold at 29.47s and cut to the supplied card), warmMusic (quiet instrumental groove with light percussion). Keep all settings that a note does not change. For artifact reports, only claim the supported fix when its timestamp matches a known issue: around 1.90s use stableCaptions to eliminate the caption dropout, around 24.47s consider moving mentoringStartFrame to 734, at 29.50s use cleanEnding. This is not a general visual-glitch repair engine. Do not claim to fix an unspecified artifact or a source-file problem. Notes from the old UI may have timestamp zero; only resolve those if the edit target is identifiable from the text. Supply one result per note with original id, applied boolean, and a short explanation.
 Schema: {"settings": <complete settings object with all listed keys>, "results":[{"id":"original id","applied":false,"reason":"why"}]}.
+Project context (explicit project instructions and selected style take precedence over client defaults; record unsupported instructions as pending): ${JSON.stringify({
+  config:context.project.config,client:context.client,style:context.style,learning:context.learning,
+  priorDrafts:context.drafts.map(({version,summary,approved})=>({version,summary,approved})),
+  historicalNotes:context.notes.map(({version,body,status})=>({version,body,status}))
+})}
 Current settings: ${JSON.stringify(resolvedSettings)}
 Transcript ([word, onset seconds]): ${JSON.stringify(words)}
 The transcript can resolve verbal cut cues. Use the next word’s onset after the requested sentence, quantized up to a 30 fps frame. Do not require an exact out-point from the user when the transcript determines it.
@@ -134,7 +139,7 @@ Notes: ${JSON.stringify(userNotes)}`;
   plan.decisions=[...resolved.values(),...plan.decisions];
   plan.changed=Object.keys(defaults).some(key=>plan.settings[key]!==previous[key]);
   if(!plan.changed)return plan;
-  await writeFile(path.join(dir,'render.json'),JSON.stringify({settings:plan.settings,sources,captionStyle:timeline.captionStyle,mixStyle:timeline.mixStyle}));
+  await writeFile(path.join(dir,'render.json'),JSON.stringify({settings:plan.settings,sources,delivery:context.constraints.format,captionStyle:timeline.captionStyle,mixStyle:timeline.mixStyle}));
   onStage('Rendering the revised preview');
   await command(process.env.KAT_PYTHON||(process.platform==='win32'?'python':'python3'),[path.join(app,'glk-revision.py'),path.join(dir,'render.json')],control,{cwd:dir});
   return {...plan,file:path.join(dir,'revision.mp4')};

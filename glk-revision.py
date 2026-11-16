@@ -16,7 +16,7 @@ short_captions=photo_captions or spec.get("captionStyle")=="reference-phrases"
 full_overlay=photo_captions or settings.get("bannerAbove")
 FPS=30
 W,H=720,1280
-render_w,render_h=(1080,1920) if photo_captions else (W,H)
+render_w,render_h=(1080,1920) if photo_captions or spec.get("delivery")=="Vertical" else (W,H)
 speech_end=884
 close_at=speech_end if settings.get("cleanEnding") else 895
 end_frame=close_at+138
@@ -292,10 +292,10 @@ else:
     with wave.open("bed.wav","wb") as bed:
         bed.setparams((1,2,rate,0,"NONE","not compressed"))
         bed.writeframes(samples)
-overlay_y=0 if full_overlay else 752
+overlay_y=0 if full_overlay else round(752*render_h/H)
 video_mix=f"[0:v][1:v]overlay=0:{overlay_y}:format=auto[v];"
-if photo_captions:
-    video_mix=f"[1:v]format=rgba,scale={render_w}:{render_h}:flags=lanczos[g];[0:v][g]overlay=0:0:format=auto[v];"
+if (render_w,render_h)!=(W,H):
+    video_mix=f"[1:v]format=rgba,scale={render_w}:-2:flags=lanczos[g];[0:v][g]overlay=0:{overlay_y}:format=auto[v];"
 filtergraph=(video_mix+
     "[2:a]aresample=48000,volume=-3dB,afade=t=in:d=0.024,"
     "afade=t=out:st=29.39:d=0.076,apad=whole_dur=34.43334[voice];"

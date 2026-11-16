@@ -18,7 +18,7 @@ export async function inspect(file, mime) {
   const fpsRational = v?.avg_frame_rate || '0/1';
   const [n,d] = fpsRational.split('/').map(Number);
   const rotation = Math.abs(v?.side_data_list?.find(item=>item.rotation !== undefined)?.rotation ?? 0);
-  return {duration:Number(data.format?.duration) || 0,width:rotation%180 ? v.height : v?.width,height:rotation%180 ? v.width : v?.height, fps:n/d || 0,fpsRational,frames:Number(v?.nb_frames)||null,audio:Boolean(a),codec:v?.codec_name ?? a?.codec_name};
+  return {duration:Number(data.format?.duration) || 0,width:rotation%180 ? v.height : v?.width,height:rotation%180 ? v.width : v?.height, fps:n/d || 0,fpsRational,frames:Number(v?.nb_frames)||null,audio:Boolean(a),sar:v?.sample_aspect_ratio||null,codec:v?.codec_name ?? a?.codec_name};
 }
 export async function ingest(store,directory,source,name,jobId) {
   const folder = path.join(directory,'media');

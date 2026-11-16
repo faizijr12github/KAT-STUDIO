@@ -49,7 +49,7 @@ function revisionDependencies(){
 function assertVerified(tag){
   requirements();
   if(tag&&(!allowedTag.test(tag)||tag!=='v'+metadata.version))throw Error('Release tag and package version differ.');
-  for(const file of ['server.mjs','store.mjs','qa.mjs','studio.js','kat.mjs'])run(process.execPath,['--check',file]);
+  for(const file of ['server.mjs','store.mjs','qa.mjs','studio.js','style-gallery.js','learning.mjs','editorial.mjs','edit-context.mjs','kat.mjs'])run(process.execPath,['--check',file]);
 }
 function cleanCheckout(){
   if(git(['status','--porcelain','--untracked-files=all'])!=='')throw Error('Checkout has local changes. Review and save them before updating or syncing.');
@@ -135,6 +135,10 @@ async function start(){
 async function main(){
   switch(action){
     case 'verify': assertVerified(args[0]); break;
+    case 'context':
+      run(process.execPath,[path.join(app,'edit-context.mjs'),'read',...args],{live:true});break;
+    case 'register':
+      run(process.execPath,[path.join(app,'edit-context.mjs'),'register',...args.map((value,index)=>index===1?path.resolve(value):value)],{live:true});break;
     case 'status': {
       requirements();
       console.log(JSON.stringify({version:metadata.version,checkout:app,data,backups,running:!!await probe(),revisionDependencies:revisionDependencies()},null,2));break;
@@ -224,7 +228,7 @@ async function main(){
       git(['push','--atomic','origin',head+':refs/heads/main',...(tag?[tagObject+':refs/tags/'+tag]:[])],{live:true});
       break;
     }
-    default: throw Error('Use init, open, stop, status, save, restore, update, or sync.');
+    default: throw Error('Use init, open, stop, status, context, register, save, restore, update, or sync.');
   }
 }
 try{await main();}

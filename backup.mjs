@@ -6,7 +6,7 @@ import path from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 
 const app=path.dirname(fileURLToPath(import.meta.url));
-const snapshotFiles=['index.html','studio.css','studio.js','server.mjs','media.mjs','store.mjs','revisions.mjs','qa.mjs','glk-revision.py','glk-score.py','glk-captions.py','glk-word-timing.json','backup.mjs','Open KAT Studio.command','Implementation plan.md','Persistence and recovery.md','persistence.json','README.md','package.json','kat.mjs','bootstrap.sh','requirements.txt','skills','docs','test','fonts','Project Memory','Library'];
+const snapshotFiles=['index.html','studio.css','studio.js','style-gallery.js','styles.json','server.mjs','media.mjs','store.mjs','learning.mjs','editorial.mjs','edit-context.mjs','revisions.mjs','qa.mjs','glk-revision.py','glk-score.py','glk-captions.py','glk-word-timing.json','backup.mjs','Open KAT Studio.command','Implementation plan.md','Persistence and recovery.md','persistence.json','README.md','CHANGELOG.md','package.json','kat.mjs','bootstrap.sh','requirements.txt','skills','docs','test','fonts','Project Memory','Library'];
 const hex=/^[0-9a-f]{64}$/;
 const digest=async file=>{
   const hash=createHash('sha256');

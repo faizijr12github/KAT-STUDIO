@@ -8,11 +8,13 @@ import {openStore,id,now} from './store.mjs';
 import {startBackups} from './backup.mjs';
 import {supportsRevision,reviseIntroduction} from './revisions.mjs';
 import {checkRender} from './qa.mjs';
-import {ingest,inspect,encode,streamFile} from './media.mjs';
+import {classifyAsset,dimensions,editingContext,organizeExistingAssets,matchesFormat,saveLearning} from './learning.mjs';
+import {ingest,inspect,encode,streamFile,mediaType} from './media.mjs';
 
 const app=path.dirname(fileURLToPath(import.meta.url));
 const directory=path.resolve(process.env.KAT_DATA || path.join(app,'Studio Data'));
 const db=openStore(directory);
+organizeExistingAssets(db);
 const instance=id();
 const port=Number(process.env.KAT_PORT||52830);
 let token;
@@ -27,7 +29,7 @@ const prefix='/'+token+'/';
 const active=new Map();
 const parse=(row,...keys)=>row&&Object.fromEntries(Object.entries(row).map(([k,v])=>[k,keys.includes(k)?JSON.parse(v):v]));
 const clean=(value,max=500)=>typeof value==='string'?value.trim().slice(0,max):'';
-const categories=['Raw Footage','Audio','Voiceovers','Music','Sound Effects','Images','Logos','Graphics','References','Documents'];
+const categories=['Raw Footage','Audio','Voiceovers','Music','Sound Effects','Images','Logos','Graphics','End Screens','B-roll','Brand Assets','References','Documents'];
 const fail=(code,message)=>Object.assign(new Error(message),{code});
 const requireRow=(row,message)=>{if(!row)throw fail(404,message);return row;};
 const projectOf=key=>requireRow(db.get('SELECT * FROM projects WHERE id=? AND deleted_at IS NULL',key),'Project unavailable.');
@@ -36,6 +38,7 @@ const allowedLinks=link=>{try {return ['https:','http:'].includes(new URL(link).
 const html=await readFile(path.join(app,'index.html'));
 const css=await readFile(path.join(app,'studio.css'));
 const js=await readFile(path.join(app,'studio.js'));
+const gallery=await readFile(path.join(app,'style-gallery.js'));
 const decode=value=>clean(decodeURIComponent(value||''),400).replaceAll('\\','/').split('/').filter(part=>part&&part!=='.'&&part!=='..').join('/');
 const jobLog=(key,state,detail)=>db.run('UPDATE jobs SET state=?,detail=? WHERE id=?',state,detail,key);
 function draftFrom(project,m,edit,summary) {
@@ -46,13 +49,22 @@ function draftFrom(project,m,edit,summary) {
 }
 function layout() {
   const mediaFields='m.size,m.mime,m.metadata';
+  const automatic=new Map();
+  const canRevise=d=>{
+    if(!supportsRevision(d.project,d.timeline))return false;
+    if(!automatic.has(d.project)){
+      const {constraints}=editingContext(db,d.project);
+      automatic.set(d.project,!constraints.endCardHash&&!constraints.reviewChecks?.length);
+    }
+    return automatic.get(d.project);
+  };
   return {
     projects:db.all('SELECT * FROM projects WHERE deleted_at IS NULL ORDER BY created DESC').map(x=>parse(x,'config')),
     trash:db.all('SELECT id,name,client,deleted_at FROM projects WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC'),
     clients:db.all('SELECT * FROM clients ORDER BY name').map(x=>parse(x,'profile')),
     styles:db.all('SELECT * FROM styles ORDER BY name,version DESC').map(x=>parse(x,'rules')),
-    assets:db.all(`SELECT a.*,${mediaFields} FROM assets a JOIN media m ON a.hash=m.hash JOIN projects p ON p.id=a.project WHERE p.deleted_at IS NULL ORDER BY a.name`).map(x=>parse(x,'metadata')),
-    drafts:db.all(`SELECT d.*,${mediaFields} FROM drafts d JOIN media m ON d.hash=m.hash JOIN projects p ON p.id=d.project WHERE p.deleted_at IS NULL ORDER BY d.version DESC`).map(x=>{const d=parse(x,'metadata','timeline');return {...d,canRevise:supportsRevision(d.project,d.timeline)};}),
+    assets:db.all(`SELECT a.*,${mediaFields} FROM assets a JOIN media m ON a.hash=m.hash JOIN projects p ON p.id=a.project WHERE p.deleted_at IS NULL ORDER BY a.name`).map(x=>parse(x,'metadata')).filter(item=>classifyAsset(item.name,item.mime)!=='Ignore'),
+    drafts:db.all(`SELECT d.*,${mediaFields} FROM drafts d JOIN media m ON d.hash=m.hash JOIN projects p ON p.id=d.project WHERE p.deleted_at IS NULL ORDER BY d.version DESC`).map(x=>{const d=parse(x,'metadata','timeline');return {...d,canRevise:canRevise(d)};}),
     notes:db.all('SELECT n.* FROM notes n JOIN drafts d ON d.id=n.draft JOIN projects p ON p.id=d.project WHERE p.deleted_at IS NULL ORDER BY n.start_frame,n.created').map(n=>({...n,attachments:db.all('SELECT name,hash FROM attachments WHERE note=?',n.id)})),
     jobs:db.all('SELECT j.* FROM jobs j JOIN projects p ON p.id=j.project WHERE p.deleted_at IS NULL ORDER BY j.created DESC LIMIT 100'),
     categories
@@ -83,6 +95,13 @@ async function seed() {
   db.run("INSERT OR IGNORE INTO meta VALUES ('examples','1')");
 }
 await seed();
+const bundledStyles=JSON.parse(await readFile(path.join(app,'styles.json'),'utf8'));
+db.tx(()=>{
+  for(const style of bundledStyles){
+    db.run('INSERT OR IGNORE INTO styles VALUES (?,?,?,?,?)',style.id,style.version,style.name,
+      JSON.stringify(style.rules),style.created);
+  }
+});
 
 function qaDetail(report){
   return ['Technical QA complete.', ...report.warnings].join(' ');
@@ -91,7 +110,7 @@ function startJob(project,draft,options,isDraft){
   if(active.size)throw fail(409,'A video job is already running.');
   const job=id(), total=Math.round(options.duration*options.fps);
   const temp=path.join(directory,job+'.mp4');
-  db.run('INSERT INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?)',job,project,draft,isDraft?'Preview':'Export','running',0,0,total,'Encoding video',null,now());
+  db.run('INSERT INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?)',job,project,draft,isDraft?'Source Preview':'Export','running',0,0,total,'Encoding video',null,now());
   let cancelled=false;
   const qaControl=new AbortController();
   const processing=encode({...options,output:temp,draft:isDraft,onProgress:frames=>{
@@ -109,7 +128,7 @@ function startJob(project,draft,options,isDraft){
       if(!JSON.parse(media.metadata).duration)throw Error('Export has no playable video duration.');
       db.tx(()=>{
         if(isDraft){
-          const draftId=draftFrom(project,media,{source:options.hash,start:options.start,duration:options.duration,qa},`Trim to ${options.start.toFixed(2)}–${(options.start+options.duration).toFixed(2)} seconds`);
+          const draftId=draftFrom(project,media,{kind:'source-preview',source:options.hash,start:options.start,duration:options.duration,qa},`Source preview · ${options.start.toFixed(2)}–${(options.start+options.duration).toFixed(2)} seconds`);
           db.run('UPDATE jobs SET draft=? WHERE id=?',draftId,job);
         }
         db.run("UPDATE jobs SET state='complete',progress=1,frames=total,hash=?,detail=? WHERE id=?",media.hash,qaDetail(qa),job);
@@ -119,7 +138,7 @@ function startJob(project,draft,options,isDraft){
   })();
   return job;
 }
-function startRevision(draft,notes){
+function startRevision(draft,notes,context){
   if(active.size||db.get("SELECT id FROM jobs WHERE state='running' LIMIT 1"))throw fail(409,'A video job is already running.');
   const job=id(), dir=path.join(directory,'revisions',job);
   const control={cancelled:false,stop:null};
@@ -128,14 +147,15 @@ function startRevision(draft,notes){
   active.set(job,()=>{control.cancelled=true;control.stop?.();qaControl.abort();});
   void (async()=>{
     try{
-      const result=await reviseIntroduction({db,app,dir,draft,notes,control,onStage:detail=>jobLog(job,'running',detail)});
+      const result=await reviseIntroduction({db,app,dir,draft,notes,context,control,onStage:detail=>jobLog(job,'running',detail)});
       if(control.cancelled){jobLog(job,'cancelled','Cancelled.');return;}
       if(!result.changed){
         jobLog(job,'needs_review',clean('No draft was changed. '+result.decisions.map(n=>n.reason).join(' '),800));
         return;
       }
       jobLog(job,'running','Checking revised video and audio');
-      const qa=await checkRender(result.file,{audio:true,fps:30,
+      const [width,height]=dimensions(context.constraints.format)||[];
+      const qa=await checkRender(result.file,{audio:true,fps:30,width,height,
         frames:result.settings.cleanEnding?1022:1033,
         motionEnd:result.settings.cleanEnding?884/30:undefined,signal:qaControl.signal});
       const rendered=await ingest(db,directory,createReadStream(result.file),'revision.mp4',id());
@@ -146,7 +166,10 @@ function startRevision(draft,notes){
       const remaining=result.decisions.filter(n=>!n.applied);
       const summary=clean(applied.map(n=>n.reason).join(' '),600);
       db.tx(()=>{
-        const fresh=draftFrom(draft.project,rendered,{...JSON.parse(draft.timeline),source:rendered.hash,start:0,duration:mediaInfo.duration,revisionSettings:result.settings,qa},summary);
+        const fresh=draftFrom(draft.project,rendered,{...JSON.parse(draft.timeline),source:rendered.hash,start:0,duration:mediaInfo.duration,revisionSettings:result.settings,qa,
+          editorialChecks:{style:context.style&&context.style.name+' v'+context.style.version,
+            retrievedLearning:context.learning.filter(l=>['Preference','Instruction'].includes(l.kind)).map(l=>l.id)}},summary);
+        saveLearning(db,{project:draft.project,kind:'Revision',text:summary,source:fresh});
         for(const n of applied)db.run("UPDATE notes SET status='Needs Review' WHERE id=? AND status='Pending'",n.id);
         const detail=clean(qaDetail(qa)+' '+summary+(remaining.length?' Pending: '+remaining.map(n=>n.reason).join(' '):''),800);
         db.run("UPDATE jobs SET state='complete',progress=1,draft=?,hash=?,detail=? WHERE id=?",fresh,rendered.hash,detail,job);
@@ -161,7 +184,7 @@ function startRevision(draft,notes){
   })();
   return job;
 }
-function exportOptions(m,body,preview){
+function exportOptions(m,body,preview,format){
   const info=JSON.parse(m.metadata);
   if(!m.mime.startsWith('video/')||!(info.duration>0))throw fail(400,'Choose playable video media.');
   const start=preview?Number(body.start):0;
@@ -170,7 +193,7 @@ function exportOptions(m,body,preview){
   let width=Number(body.width),height=Number(body.height),fps=Number(body.fps);
   if(preview){
     const factor=Math.min(1,960/Math.max(info.width,info.height));
-    width=Math.max(2,2*Math.floor(info.width*factor/2));height=Math.max(2,2*Math.floor(info.height*factor/2));fps=Math.min(60,Math.max(12,info.fps||30));
+    [width,height]=dimensions(format)||[Math.max(2,2*Math.floor(info.width*factor/2)),Math.max(2,2*Math.floor(info.height*factor/2))];fps=Math.min(60,Math.max(12,info.fps||30));
   }
   const codec=body.codec||'h264';
   if(![width,height].every(n=>Number.isInteger(n)&&n%2===0&&n>=2&&n<=3840)||!Number.isFinite(fps)||fps<12||fps>60||!['h264','hevc'].includes(codec))throw fail(400,'Choose even dimensions up to 3840, 12–60 fps, and a supported codec.');
@@ -185,7 +208,7 @@ async function jsonBody(req){
   return parsed;
 }
 const json=(res,code,value)=>{res.writeHead(code,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(value));};
-const staticFiles={'':['text/html;charset=utf-8',html],'studio.css':['text/css;charset=utf-8',css],'studio.js':['text/javascript;charset=utf-8',js]};
+const staticFiles={'':['text/html;charset=utf-8',html],'studio.css':['text/css;charset=utf-8',css],'studio.js':['text/javascript;charset=utf-8',js],'style-gallery.js':['text/javascript;charset=utf-8',gallery]};
 const security={'Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'self'; img-src 'self' blob:; media-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; style-src 'self' 'unsafe-inline'; base-uri 'none'"};
 const server=createServer(async(req,res)=>{
   try{
@@ -201,6 +224,9 @@ const server=createServer(async(req,res)=>{
       res.setHeader('Cache-Control','no-store');
       if(req.headers['if-none-match']===tag){res.writeHead(304);return res.end();}
       return json(res,200,layout());
+    }
+    if(req.method==='GET'&&route==='api/editing-context'){
+      return json(res,200,editingContext(db,projectOf(query.get('project')).id));
     }
     if(req.method==='GET'&&route==='api/latest-draft'){
       const project=projectOf(query.get('project'));
@@ -223,15 +249,17 @@ const server=createServer(async(req,res)=>{
       if(!name)throw fail(400,'A filename is required.');
       const attach=route==='api/attach';
       const note=attach?requireRow(db.get('SELECT n.* FROM notes n JOIN drafts d ON d.id=n.draft WHERE n.id=? AND d.project=?',query.get('note'),project),'Note unavailable.'):null;
+      const detected=classifyAsset(name,mediaType(name));
+      const category=query.get('category');
+      if(!attach&&detected==='Ignore'){req.resume();return json(res,200,{ignored:true});}
+      if(!attach&&category!=='Auto'&&!categories.includes(category))throw fail(400,'Select an asset category.');
       const m=await ingest(db,directory,req,name,id()).catch(error=>{throw fail(422,'Could not import '+name+'. '+clean(error.message,160));});
       projectOf(project);
       if(attach)db.run('INSERT OR IGNORE INTO attachments VALUES (?,?,?)',note.id,m.hash,name);
       else{
-        const category=query.get('category');
-        if(!categories.includes(category))throw fail(400,'Select an asset category.');
-        db.run('INSERT OR IGNORE INTO assets VALUES (?,?,?,?,?)',id(),project,m.hash,name,category);
+        db.run('INSERT OR IGNORE INTO assets VALUES (?,?,?,?,?)',id(),project,m.hash,name,category==='Auto'?detected:category);
       }
-      return json(res,201,{hash:m.hash});
+      return json(res,201,{hash:m.hash,category:attach?undefined:category==='Auto'?detected:category});
     }
     if(route==='api/shutdown'&&process.env.KAT_PORTABLE==='1'){
       if(active.size)throw fail(409,'Finish or cancel running video jobs first.');
@@ -253,6 +281,8 @@ const server=createServer(async(req,res)=>{
         db.run('INSERT INTO projects (id,name,client,config,created) VALUES (?,?,?,?,?)',key,name,client,JSON.stringify({
           brief:clean(b.brief,16000),brand:clean(b.brand,12000),references:clean(b.references,12000),format:clean(b.format,40),style,platforms:Array.isArray(b.platforms)?b.platforms.map(v=>clean(v,40)).slice(0,10):[]
         }),now());
+        const brief=clean(b.brief,16000);
+        if(brief)saveLearning(db,{project:key,kind:'Instruction',text:brief,source:'initial-brief'});
       });
       return json(res,201,{id:key});
     }
@@ -287,7 +317,21 @@ const server=createServer(async(req,res)=>{
       if(!restored.changes)throw fail(404,'Project is unavailable in Trash.');
       return json(res,200,{});
     }
-    const project=projectOf(b.project).id;
+    const activeProject=projectOf(b.project);
+    const project=activeProject.id;
+    const config=JSON.parse(activeProject.config);
+    if(route==='api/learning'){
+      const instruction=clean(b.text,8000);
+      if(!instruction||!['project','client'].includes(b.scope))throw fail(400,'Enter an instruction and choose its scope.');
+      const key=saveLearning(db,{project,kind:b.scope==='client'?'Preference':'Instruction',text:instruction,scope:b.scope});
+      return json(res,201,{id:key});
+    }
+    if(route==='api/project-style'){
+      const style=b.style?requireRow(db.get("SELECT id,version FROM styles WHERE id||':'||version=?",b.style),'Style unavailable.'):null;
+      if(db.get("SELECT id FROM jobs WHERE project=? AND state='running'",project))throw fail(409,'Finish the current job before changing the style.');
+      db.run('UPDATE projects SET config=? WHERE id=?',JSON.stringify({...config,style}),project);
+      return json(res,200,{});
+    }
     if(route==='api/trash/delete'){
       if(b.confirm!==true)throw fail(400,'Confirm moving the project to Trash.');
       if(db.get("SELECT id FROM jobs WHERE project=? AND state='running'",project))throw fail(409,'Cancel or finish the running render before deleting this project.');
@@ -300,7 +344,9 @@ const server=createServer(async(req,res)=>{
       const notes=db.all("SELECT id,body,start_frame,end_frame FROM notes WHERE draft=? AND status='Pending' ORDER BY start_frame,created",draft.id);
       if(!notes.length)throw fail(400,'Add a pending note before submitting.');
       if(notes.length>20)throw fail(400,'Submit no more than 20 pending notes at a time.');
-      return json(res,202,{job:startRevision(draft,notes)});
+      const context=editingContext(db,project);
+      if(context.constraints.endCardHash||context.constraints.reviewChecks?.length)throw fail(422,'Use Prepare edit for Codex to apply and verify the saved editorial requirements for this revision.');
+      return json(res,202,{job:startRevision(draft,notes,context)});
     }
     if(route==='api/notes'){
       const draft=draftOf(project,b.draft), m=db.get('SELECT metadata FROM media WHERE hash=?',draft.hash), video=JSON.parse(m.metadata);
@@ -308,17 +354,29 @@ const server=createServer(async(req,res)=>{
       const start=Number(b.start),end=Number(b.end),body=clean(b.body,4000);
       if(!body||![start,end].every(Number.isInteger)||start<0||end<start||end>last)throw fail(400,'Enter a note and a frame range inside this draft.');
       const key=id();
-      db.run('INSERT INTO notes VALUES (?,?,?,?,?,?,?,?,?)',key,draft.id,start,end,body,['High','Normal','Low'].includes(b.priority)?b.priority:'Normal','Pending',allowedLinks(b.link)?b.link:null,now());
+      db.tx(()=>{
+        db.run('INSERT INTO notes VALUES (?,?,?,?,?,?,?,?,?)',key,draft.id,start,end,body,['High','Normal','Low'].includes(b.priority)?b.priority:'Normal','Pending',allowedLinks(b.link)?b.link:null,now());
+        saveLearning(db,{project,kind:'Feedback',text:body,source:key});
+      });
       return json(res,201,{id:key});
     }
     if(route==='api/note-status'){
       const n=requireRow(db.get('SELECT n.id FROM notes n JOIN drafts d ON d.id=n.draft WHERE n.id=? AND d.project=?',b.note,project),'Note unavailable.');
       if(!['Pending','In Progress','Fixed','Needs Review','Approved'].includes(b.status))throw fail(400,'Unknown note status.');
-      db.run('UPDATE notes SET status=? WHERE id=?',b.status,n.id);return json(res,200,{});
+      db.tx(()=>{
+        db.run('UPDATE notes SET status=? WHERE id=?',b.status,n.id);
+        if(b.status==='Approved')saveLearning(db,{project,kind:'Approved correction',
+          text:db.get('SELECT body FROM notes WHERE id=?',n.id).body,source:n.id});
+      });return json(res,200,{});
     }
     if(route==='api/approve'){
       const draft=draftOf(project,b.draft);
-      db.run('UPDATE drafts SET approved=COALESCE(approved,?) WHERE id=?',now(),draft.id);return json(res,200,{});
+      if(JSON.parse(draft.timeline).kind==='source-preview'||/^Trim to /.test(draft.summary))throw fail(400,'Create an editorial draft before approving a source preview.');
+      db.tx(()=>{
+        db.run('UPDATE drafts SET approved=COALESCE(approved,?) WHERE id=?',now(),draft.id);
+        saveLearning(db,{project,kind:'Approved edit',text:'Draft '+draft.version+' approved. '+draft.summary,source:draft.id});
+      });
+      return json(res,200,{});
     }
     if(route==='api/preview'){
       if(b.first===true){
@@ -326,15 +384,16 @@ const server=createServer(async(req,res)=>{
         if(existing)return json(res,200,{draft:existing.id});
       }
       const media=requireRow(db.get('SELECT m.* FROM assets a JOIN media m ON a.hash=m.hash WHERE a.id=? AND a.project=?',b.asset,project),'Video asset unavailable.');
-      return json(res,202,{job:startJob(project,null,exportOptions(media,b.first===true?{start:0,end:JSON.parse(media.metadata).duration}:b,true),true)});
+      return json(res,202,{job:startJob(project,null,exportOptions(media,b.first===true?{start:0,end:JSON.parse(media.metadata).duration}:b,true,config.format),true)});
     }
     if(route==='api/export'){
       const draft=draftOf(project,b.draft);
       if(!draft.approved||b.confirm!==true)throw fail(400,'Approve the draft and confirm export settings first.');
       const original=draft.timeline&&JSON.parse(draft.timeline);
-      const canUseSource=original?.source!==draft.hash;
+      const canUseSource=Boolean(original?.source&&original.source!==draft.hash);
       const media=requireRow(db.get('SELECT * FROM media WHERE hash=?',canUseSource?original.source:draft.hash),'Draft media unavailable.');
       const opts=exportOptions(media,b,false);
+      if(!matchesFormat(opts.width,opts.height,config.format))throw fail(400,'Export dimensions must match the project format.');
       if(canUseSource){opts.start=original.start;opts.duration=original.duration;}
       return json(res,202,{job:startJob(project,draft.id,opts,false)});
     }
