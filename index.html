@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KAT Studio</title>
+<link rel="stylesheet" href="studio.css">
+<script type="module" src="studio.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <button class="brand" data-view="projects" aria-label="KAT Studio dashboard"><span class="logomark">K</span><span>KAT STUDIO<small>AI-powered video editing workspace</small></span></button>
+  <div class="top-actions"><span id="connection" class="connection">Connecting</span><button class="primary" id="new-project">+ New project</button></div>
+</header>
+<div class="app">
+  <nav class="nav" aria-label="Studio navigation">
+    <button data-view="projects" class="active"><span>▦</span> Projects</button>
+    <button data-view="styles"><span>◇</span> Editing styles</button>
+    <button data-view="clients"><span>◉</span> Client library</button>
+    <button data-view="queue"><span>≡</span> Render queue</button>
+    <div class="nav-foot">LOCAL WORKSPACE</div>
+  </nav>
+  <main id="content" tabindex="-1"></main>
+</div>
+<dialog id="dialog"></dialog>
+<div id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

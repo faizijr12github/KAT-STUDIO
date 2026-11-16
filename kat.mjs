@@ -1,0 +1,231 @@
+#!/usr/bin/env node
+import {spawn, spawnSync} from 'node:child_process';
+import {readFile, mkdir, open, writeFile} from 'node:fs/promises';
+import {existsSync} from 'node:fs';
+import {homedir} from 'node:os';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {DatabaseSync, backup} from 'node:sqlite';
+import {saveSnapshot, restoreSnapshot} from './backup.mjs';
+
+const app=path.dirname(fileURLToPath(import.meta.url));
+const official='https://github.com/faizijr12github/KAT-Studio.git';
+const home=path.resolve(process.env.KAT_HOME||(path.basename(app)==='app'?path.dirname(app):path.join(homedir(),'.local/share/kat-studio')));
+const settingsFile=path.join(home,'workspace.json');
+const settings=await readFile(settingsFile,'utf8').then(JSON.parse).catch(error=>{if(error.code!=='ENOENT')throw error;return {};});
+const data=path.resolve(process.env.KAT_DATA||settings.data||path.join(home,'data'));
+const backups=path.resolve(process.env.KAT_BACKUP_DIR||path.join(home,'backups'));
+const port=Number(process.env.KAT_PORT||settings.port||52830);
+const env={...process.env,KAT_DATA:data,KAT_PORT:String(port),KAT_BACKUP_DIR:backups,KAT_NO_SEED:'1',KAT_PORTABLE:'1',
+  KAT_FONT_DIR:process.env.KAT_FONT_DIR||path.join(home,'fonts')};
+const python=process.env.KAT_PYTHON||(process.platform==='win32'?'python':'python3');
+const args=process.argv.slice(2);
+const action=args.shift()||'status';
+const allowedTag=/^v\d+\.\d+\.\d+$/;
+const metadata=JSON.parse(await readFile(path.join(app,'package.json'),'utf8'));
+
+function run(exe,argv,{optional=false,live=false}={}){
+  const result=spawnSync(exe,argv,{cwd:app,env,encoding:'utf8',stdio:live?'inherit':['ignore','pipe','pipe']});
+  if(result.status===0)return live?'':result.stdout.trim();
+  if(optional)return null;
+  throw Error(result.error?.message||result.stderr?.trim()||exe+' failed (exit '+result.status+').');
+}
+const git=(argv,options)=>run('git',argv,options);
+
+function requirements(){
+  if(typeof DatabaseSync!=='function'||typeof backup!=='function')throw Error('Install Node.js with SQLite backup support (22.16 or newer).');
+  for(const [name,arg] of [['git','--version'],['ffmpeg','-version'],['ffprobe','-version']]){
+    if(run(name,[arg],{optional:true})===null)throw Error('Install '+name+' and make it available on PATH.');
+  }
+}
+function revisionDependencies(){
+  return {
+    python:run(python,['-c','import PIL, numpy'],{optional:true})!==null,
+    fonts:['Poppins-Regular.ttf','Poppins-Bold.ttf','PlayfairDisplay-Italic.ttf'].every(name=>
+      existsSync(path.join(env.KAT_FONT_DIR,name))||existsSync(path.join(homedir(),'Library','Fonts',name))),
+    codex:run('codex',['--version'],{optional:true})!==null
+  };
+}
+function assertVerified(tag){
+  requirements();
+  if(tag&&(!allowedTag.test(tag)||tag!=='v'+metadata.version))throw Error('Release tag and package version differ.');
+  for(const file of ['server.mjs','store.mjs','qa.mjs','studio.js','kat.mjs'])run(process.execPath,['--check',file]);
+}
+function cleanCheckout(){
+  if(git(['status','--porcelain','--untracked-files=all'])!=='')throw Error('Checkout has local changes. Review and save them before updating or syncing.');
+}
+function remote(){
+  const expected=git(['config','--local','--get','kat.remote'],{optional:true})||official;
+  if(git(['remote','get-url','origin'])!==expected||git(['remote','get-url','--push','origin'])!==expected)
+    throw Error('origin differs from the configured KAT Studio remote.');
+  return expected;
+}
+function fetchRelease(){
+  remote();
+  git(['fetch','--prune','--no-tags','origin','+refs/tags/v*:refs/kat/releases/v*'],{live:true});
+  const tags=git(['for-each-ref','--sort=-version:refname','--format=%(refname:lstrip=3)','refs/kat/releases']).split('\n');
+  const tag=tags.find(value=>allowedTag.test(value));
+  if(!tag)throw Error('The remote has no stable release tag.');
+  const ref='refs/kat/releases/'+tag;
+  const commit=git(['rev-parse',ref+'^{commit}']);
+  const pkg=JSON.parse(git(['show',commit+':package.json']));
+  if('v'+pkg.version!==tag||pkg.name!=='kat-studio')throw Error('Remote release metadata does not match its tag.');
+  const pinned=git(['config','--local','--get','kat.installed-tag'],{optional:true});
+  if(pinned){
+    const old=git(['config','--local','--get','kat.installed-commit'],{optional:true});
+    const upstream=git(['rev-parse','refs/kat/releases/'+pinned+'^{commit}'],{optional:true});
+    if(old&&upstream!==old)throw Error('The installed release tag was moved upstream. Review its history before updating.');
+  }
+  // Fetch distinct refs so no local tags or working files change while checking.
+  return {tag,commit};
+}
+async function skill(){
+  const dir=path.join(process.env.KAT_SKILL_DIR||path.join(homedir(),'.agents','skills'),'kat-studio');
+  await mkdir(dir,{recursive:true});
+  const config=path.join(dir,'workspace.json');
+  const marker='<!-- Generated by the portable KAT Studio installer -->';
+  const source=await readFile(path.join(app,'skills/kat-studio/SKILL.md'),'utf8');
+  const content=source+'\n'+marker+'\n';
+  const launcher=path.join(app,'kat.mjs');
+  const existing=await readFile(path.join(dir,'SKILL.md'),'utf8').catch(e=>{if(e.code!=='ENOENT')throw e;});
+  if(existing){
+    const settings=await readFile(config,'utf8').then(JSON.parse).catch(e=>{if(e.code!=='ENOENT')throw e;});
+    if(!existing.includes(marker)||settings?.launcher!==launcher){
+      console.log('Existing Codex skill preserved at '+dir+'. The portable launcher is '+launcher);
+      return;
+    }
+    console.log('Codex skill already installed at '+dir);
+    return;
+  }
+  await writeFile(config,JSON.stringify({launcher},null,2)+'\n',{flag:'wx',mode:0o600});
+  await writeFile(path.join(dir,'SKILL.md'),content,{flag:'wx',mode:0o600});
+  console.log('Installed Codex skill at '+dir+'. A new Codex chat may be needed to load it.');
+}
+async function probe(){
+  const token=await readFile(path.join(data,'access'),'utf8').catch(e=>{if(e.code!=='ENOENT')throw e;});
+  if(!token||!(/^[a-f0-9]{48}$/).test(token.trim()))return null;
+  const url='http://127.0.0.1:'+port+'/'+token.trim()+'/';
+  try{
+    const result=await fetch(url+'api/state',{signal:AbortSignal.timeout(800)});
+    return result.ok?url:null;
+  }catch{return null;}
+}
+async function start(){
+  requirements();
+  if(!Number.isInteger(port)||port<1024||port>65535)throw Error('Set KAT_PORT to a valid local port (1024–65535).');
+  const existing=await probe();
+  if(existing)return existing;
+  await mkdir(data,{recursive:true,mode:0o700});
+  const log=path.join(home,'studio.log');
+  await mkdir(home,{recursive:true});
+  const handle=await open(log,'a',0o600);
+  const child=spawn(process.execPath,[path.join(app,'server.mjs')],{cwd:app,env,detached:true,stdio:['ignore',handle.fd,handle.fd]});
+  let startupError;
+  child.on('error',e=>{startupError=e;});
+  child.unref();
+  await handle.close();
+  for(let i=0;i<50;i++){
+    const url=await probe();
+    if(url)return url;
+    if(startupError||child.exitCode!==null)break;
+    await new Promise(resolve=>setTimeout(resolve,120));
+  }
+  throw Error('Studio failed to start. Check '+log+' and KAT_PORT.');
+}
+async function main(){
+  switch(action){
+    case 'verify': assertVerified(args[0]); break;
+    case 'status': {
+      requirements();
+      console.log(JSON.stringify({version:metadata.version,checkout:app,data,backups,running:!!await probe(),revisionDependencies:revisionDependencies()},null,2));break;
+    }
+    case 'init': {
+      assertVerified();
+      if((settings.data&&settings.data!==data)||(settings.port&&settings.port!==port))
+        throw Error('This install already has a workspace preference. Edit '+settingsFile+' explicitly to change it.');
+      await mkdir(data,{recursive:true,mode:0o700});
+      await writeFile(settingsFile,JSON.stringify({data,port},null,2)+'\n',{flag:'wx',mode:0o600})
+        .catch(error=>{if(error.code!=='EEXIST')throw error;});
+      await skill();
+      break;
+    }
+    case 'open': {
+      const url=await start();
+      if(process.env.KAT_NO_BROWSER!=='1'){
+        const opener=process.platform==='darwin'?'open':process.platform==='win32'?'explorer.exe':'xdg-open';
+        run(opener,[url],{optional:true});
+      }
+      console.log(url);break;
+    }
+    case 'save': {
+      if(args[0]==='--message'&&args[1]){
+        run(process.execPath,['--test'],{live:true});
+        git(['diff','--cached','--check']);
+        git(['commit','-m',args[1]],{live:true});
+      }else{
+        const saved=await saveSnapshot(data,backups);
+        console.log('Verified snapshot '+saved.snapshot+' ('+saved.assets.length+' media files).');
+      }
+      break;
+    }
+    case 'restore': {
+      if(!args[0])throw Error('Use restore <new-directory> [snapshot-id].');
+      const saved=await restoreSnapshot(backups,args[0],args[1]);
+      console.log('Recovered '+saved.snapshot+'. Use KAT_DATA='+path.join(path.resolve(args[0]),'Studio Data')+' with a free KAT_PORT to open it.');
+      break;
+    }
+    case 'update': {
+      const {tag,commit}=fetchRelease();
+      console.log('Installed '+metadata.version+'; latest stable '+tag+' ('+commit+').');
+      if(commit===git(['rev-parse','HEAD']))break;
+      if(!args.includes('--approve'))break;
+      if(args[args.indexOf('--approve')+1]!==commit)throw Error('Pass --approve followed by the verified release commit.');
+      if(await probe())throw Error('The portable Studio is running. Stop it with the stop command before updating.');
+      cleanCheckout();
+      if(git(['merge-base','--is-ancestor','HEAD',commit],{optional:true})===null)throw Error('The release is not a fast-forward of this checkout.');
+      const before=git(['rev-parse','HEAD']);
+      git(['branch','kat-backup/'+before,before],{optional:true});
+      git(['merge','--ff-only','--no-overwrite-ignore',commit],{live:true});
+      git(['config','--local','kat.installed-tag',tag]);
+      git(['config','--local','kat.installed-commit',commit]);
+      console.log('Updated to '+tag+'. Previous commit: '+before);
+      break;
+    }
+    case 'stop': {
+      const url=await probe();
+      if(!url)break;
+      const result=await fetch(url+'api/shutdown',{method:'POST',headers:{Origin:new URL(url).origin}});
+      if(!result.ok)throw Error('Studio refused to stop. Finish or cancel running video jobs first.');
+      for(let i=0;i<20;i++){
+        if(!await probe()){console.log('Studio stopped.');return;}
+        await new Promise(resolve=>setTimeout(resolve,100));
+      }
+      throw Error('Studio is still stopping. Check status before updating.');
+    }
+    case 'sync': {
+      const target=remote();
+      if(git(['branch','--show-current'])!=='main')throw Error('Sync official changes from the main branch in a development checkout.');
+      cleanCheckout();
+      const tag=args.find(value=>allowedTag.test(value));
+      const head=git(['rev-parse','HEAD']);
+      console.log('Destination '+target+'\nCommit '+head+(tag?'\nRelease '+tag:''));
+      let tagObject;
+      if(tag){
+        assertVerified(tag);
+        tagObject=git(['rev-parse','refs/tags/'+tag]);
+        if(git(['rev-parse','refs/tags/'+tag+'^{commit}'])!==head)throw Error('Release tag does not point to HEAD.');
+      }
+      if(!args.includes('--approve')){
+        git(['log','-5','--oneline'],{live:true});break;
+      }
+      if(args[args.indexOf('--approve')+1]!==head)throw Error('Pass --approve followed by the reviewed HEAD commit.');
+      run(process.execPath,['--test'],{live:true});
+      if(git(['rev-parse','HEAD'])!==head)throw Error('HEAD changed during validation.');
+      git(['push','--atomic','origin',head+':refs/heads/main',...(tag?[tagObject+':refs/tags/'+tag]:[])],{live:true});
+      break;
+    }
+    default: throw Error('Use init, open, stop, status, save, restore, update, or sync.');
+  }
+}
+try{await main();}
+catch(error){console.error('KAT Studio: '+error.message);process.exitCode=1;}

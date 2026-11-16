@@ -1,0 +1,9 @@
+{
+  "name": "kat-studio",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {"node": ">=22.16.0"},
+  "bin": {"kat-studio": "./kat.mjs"},
+  "scripts": {"test": "node --test"}
+}

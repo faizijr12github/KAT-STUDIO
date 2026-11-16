@@ -1,0 +1,11 @@
+/Studio Data/
+/Backups/
+/Library/
+/Project Memory/
+/fonts/
+.local/
+.env
+.env.*
+*.sqlite*
+__pycache__/
+.venv/
