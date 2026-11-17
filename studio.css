@@ -263,3 +263,48 @@ dialog::backdrop{background:#090706cc}
 }
 .preview-open{display:grid;place-items:center;width:31px;height:31px;border-radius:7px;background:#191310d7;border:1px solid #b58a6b85;color:#ffdbbf;position:absolute;bottom:10px;right:10px;font-size:15px;transition:background .16s ease}
 .style-cover:hover .preview-open,.style-cover:focus-visible .preview-open{background:#66452f}
+
+/* Keep workspace controls within their available width, including long imported names. */
+.card,.pane,.fields>*,.two>*,.checks>*,.row>*,.split>*,.context-grid>*,.compare-grid>*{min-inline-size:0}
+button,.button{max-inline-size:100%;white-space:normal;overflow-wrap:anywhere}
+.card,.pane,dialog,#style-selection,#download-status{overflow-wrap:anywhere}
+.stage video,.stage img,.stage audio{max-inline-size:100%}
+.transport input[type=range],#compare-time{min-inline-size:0;max-inline-size:100%}
+.dialog-foot{flex-wrap:wrap}
+.dialog-foot .row{flex-wrap:wrap}
+dialog{max-block-size:calc(100dvh - 24px);overscroll-behavior:contain}
+#compare-time{width:min(35vw,220px)}
+.stage:fullscreen video{height:100%;max-height:100%;min-height:0}
+
+@media(max-width:760px){
+  .nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));overflow:visible}
+  .nav button{display:flex;justify-content:center;align-items:center;gap:4px;line-height:1.15;min-height:44px}
+  .nav button span{margin:0;flex:none}
+  .topbar{flex-wrap:wrap}
+  .gallery-toolbar{align-items:stretch}
+  .style-filters{flex:1 1 100%}
+  .style-filters button,.style-compare-toggle,.gallery-status button,.transport button{min-height:44px}
+  .workspace>.pane{min-width:0}
+  .stage{min-height:170px}
+  .stage video{height:clamp(170px,50svh,480px);min-height:0}
+  .compare-grid video{height:clamp(140px,36svh,360px)}
+  .pane-title .row{max-width:100%}
+  .transport .split>div:first-child{flex:1 1 100%}
+  .transport .split>div:last-child{margin-inline-start:auto}
+}
+@media(max-width:390px){
+  .nav button span{display:none}
+  .nav button{padding-inline:4px}
+  main{padding-inline:12px}
+  dialog{padding:14px}
+  .style-grid{gap:8px}
+  .style-card-body{padding:8px}
+  .gallery-status #style-selection{flex-basis:100%}
+  .compare-grid{grid-template-columns:minmax(0,1fr);gap:14px}
+  .compare-grid video{height:clamp(130px,30svh,230px)}
+  .checks{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-height:480px) and (orientation:landscape){
+  .stage video,.style-detail .style-art,.compare-grid video{max-height:58svh;min-height:0}
+  .stage{min-height:120px}
+}

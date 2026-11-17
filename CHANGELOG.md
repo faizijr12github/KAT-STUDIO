@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1
+
+- Tightened the responsive layout for narrow phones, tablets, and short landscape viewports. Navigation wraps, controls stay within their panels, and comparison and review previews adapt to the available space.
+
 ## 1.1.0
 
 - Redesigned the KAT Studio interface with a responsive style gallery, search, category filters, visual examples, comparison and preset handoff.
