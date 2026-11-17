@@ -7,6 +7,7 @@ import {fileURLToPath} from 'node:url';
 import {openStore,id,now} from './store.mjs';
 import {startBackups} from './backup.mjs';
 import {supportsRevision,reviseIntroduction} from './revisions.mjs';
+import {isIntake,makeDraftBrief,renderFirstDraft} from './first-draft.mjs';
 import {checkRender} from './qa.mjs';
 import {classifyAsset,dimensions,editingContext,organizeExistingAssets,matchesFormat,saveLearning} from './learning.mjs';
 import {ingest,inspect,encode,streamFile,mediaType} from './media.mjs';
@@ -177,6 +178,30 @@ function startRevision(draft,notes,context){
     }catch(error){
       console.error('Revision failed:', error.message);
       jobLog(job,control.cancelled?'cancelled':'failed',control.cancelled?'Cancelled.':(error.message.startsWith('Render QA')?error.message+' Your current draft is preserved.':'Codex could not finish the revision. Your notes and current draft are available for retry.'));
+    }finally{
+      active.delete(job);
+      await rm(dir,{recursive:true,force:true}).catch(()=>{});
+    }
+  })();
+  return job;
+}
+function startFirstDraft(context,brief){
+  if(active.size||db.get("SELECT id FROM jobs WHERE state='running' LIMIT 1"))throw fail(409,'A video job is already running.');
+  const project=context.project.id;
+  const job=id(),dir=path.join(directory,'first-drafts',job);
+  const controller=new AbortController();
+  db.run('INSERT INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?)',job,project,null,'First Draft','running',0,0,0,'Preparing the folder inventory',null,now());
+  active.set(job,()=>controller.abort());
+  void (async()=>{
+    try{
+      const draft=await renderFirstDraft({db,directory,context,brief,dir,signal:controller.signal,
+        onStage:detail=>jobLog(job,'running',detail)});
+      const unavailable=[...draft.intakeReview.assets,...draft.intakeReview.links].filter(item=>item.status==='unavailable').length;
+      const detail=unavailable?`Draft ready. ${unavailable} inputs could not be inspected. See the input review for details.`:'Edited draft ready. Technical QA complete.';
+      db.run("UPDATE jobs SET state='complete',progress=1,draft=?,hash=?,detail=? WHERE id=?",draft.id,draft.hash,detail,job);
+    }catch(error){
+      const message=error.code==='ENOENT'?'Install or configure a signed-in Codex CLI and retry.':clean(error.message,300);
+      jobLog(job,controller.signal.aborted?'cancelled':'failed',controller.signal.aborted?'Draft cancelled.':message);
     }finally{
       active.delete(job);
       await rm(dir,{recursive:true,force:true}).catch(()=>{});
@@ -377,6 +402,15 @@ const server=createServer(async(req,res)=>{
         saveLearning(db,{project,kind:'Approved edit',text:'Draft '+draft.version+' approved. '+draft.summary,source:draft.id});
       });
       return json(res,200,{});
+    }
+    if(route==='api/first-draft'){
+      const context=editingContext(db,project);
+      if(context.drafts.some(d=>!isIntake(d)))throw fail(409,'An edited draft already exists. Open it in Draft Review.');
+      if(context.missingAssets.length)throw fail(422,'Import the required end screen before editing.');
+      if(!context.assets.some(a=>a.id===b.asset&&a.category==='Raw Footage'&&a.mime.startsWith('video/')&&a.metadata.duration>0))
+        throw fail(400,'Choose an imported raw video.');
+      const brief=await makeDraftBrief(db,context,b.asset);
+      return json(res,202,{job:startFirstDraft(context,brief)});
     }
     if(route==='api/preview'){
       if(b.first===true){

@@ -11,7 +11,7 @@ import {now} from './store.mjs';
 const exec=promisify(execFile);
 export const contextReceipt=context=>createHash('sha256').update(JSON.stringify(context)).digest('hex');
 
-async function verifyEndScreen(db,file,media,card){
+async function verifyEndScreen(db,file,media,card,signal){
   const {hash,startFrame,sourceInFrame=0,frames}=card;
   const source=db.get('SELECT file,metadata FROM media WHERE hash=?',hash);
   if(!source||![startFrame,sourceInFrame,frames].every(Number.isInteger)||startFrame<0||sourceInFrame<0||
@@ -24,23 +24,28 @@ async function verifyEndScreen(db,file,media,card){
     '[a][b]ssim=shortest=1'
   ].join(';');
   const {stderr}=await exec('ffmpeg',['-hide_banner','-nostdin','-xerror','-i',file,'-i',source.file,
-    '-filter_complex_threads','1','-filter_complex',graph,'-an','-f','null','-'],{timeout:90000,maxBuffer:2**20});
+    '-filter_complex_threads','1','-filter_complex',graph,'-an','-f','null','-'],{timeout:90000,maxBuffer:2**20,signal});
   const similarity=Number(stderr.match(/\bAll:([\d.]+)/)?.[1]);
   if(!(similarity>=.94))throw Error('Render QA: the final frames do not match the supplied end screen.');
   return similarity;
 }
 
-export async function registerEditorial({db,directory,project,file,recipe,summary,contextToken}){
+export async function registerEditorial({db,directory,project,file,recipe,summary,contextToken,signal,rejectSourceCopy=false}){
+  signal?.throwIfAborted();
   const context=editingContext(db,project);
   if(!context||contextReceipt(context)!==contextToken)throw Error('Project instructions changed. Retrieve the current editing context before registering the draft.');
   if(typeof summary!=='string'||!summary.trim())throw Error('An editorial summary is required.');
   const info=await inspect(file,'video/mp4');
   assertEditorial(context,info,recipe);
-  const similarity=recipe.endCard?await verifyEndScreen(db,file,info,recipe.endCard):null;
+  const similarity=recipe.endCard?await verifyEndScreen(db,file,info,recipe.endCard,signal):null;
   const qa=await checkRender(file,{audio:true,width:info.width,height:info.height,fps:info.fps,frames:info.frames,
-    motionEnd:(recipe.endCard?.startFrame??info.frames)/info.fps});
+    signal,motionEnd:(recipe.endCard?.startFrame??info.frames)/info.fps});
   if(qa.black.length||qa.peakDb===null||qa.peakDb>=-.1)throw Error('Render QA: black frames or invalid audio were detected.');
+  signal?.throwIfAborted();
   const media=await ingest(db,directory,createReadStream(file),path.basename(file),randomUUID());
+  signal?.throwIfAborted();
+  if(rejectSourceCopy&&context.assets.some(asset=>asset.hash===media.hash))
+    throw Error('The render matches an existing project asset. Make an editorial edit before saving.');
   return db.tx(()=>{
     if(contextReceipt(editingContext(db,project))!==contextToken)throw Error('Project instructions changed during verification.');
     if(db.get('SELECT id FROM drafts WHERE project=? AND hash=?',project,media.hash))throw Error('This render is already a draft in the project.');

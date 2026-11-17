@@ -3,10 +3,15 @@
 ## Project workflow
 
 1. Create a project and set its delivery format and client brand. Choose a pinned style version in Editing Styles or Project Setup. Browse all 31 bundled presets by category and compare two before choosing. Creator Pack cards are visual layout examples. A matching local GLK render becomes playable when that workspace contains one.
-2. Import the project folder. Auto detects footage, cutaways, caption references, logos, music and closing cards from file types and relative paths. Use an explicit category for exceptions. A source preview follows the project format and serves as intake.
+2. Import the project folder. Auto detects footage, cutaways, caption references, logos, music and closing cards from file types and relative paths. Use an explicit category for exceptions. Folder imports preserve nested file paths, including when dropped in a browser that supports directory drag and drop. Existing source previews remain available in draft history.
 3. Save explicit project directions and separately scoped client preferences in Instructions and history. Add revision notes at the specific draft frame. Approved edits and corrections remain attached to the originating project.
-4. Use Prepare edit for Codex or `node kat.mjs context PROJECT_ID` to retrieve the brief, project assets, style version, prior drafts, timestamped notes, verified decisions and relevant preferences. Apply the latest explicit project directions first. Use media from the local Studio workspace.
-5. Build the edit in an appropriate local workflow, review it and register it as a new draft. Compare versions, leave feedback, approve the selected draft and confirm export.
+4. Select **Make first draft**. With multiple raw clips, choose the main footage first. The signed-in Codex CLI reviews the complete inventory, footage, supplied references, pinned style and instructions, then renders an MP4. The job records a finding or access blocker for every input and opens the first editorial draft after technical QA. Check **Folder and reference review** in Draft Review.
+5. For a manual handoff, use Prepare edit for Codex or `node kat.mjs context PROJECT_ID` to retrieve the brief, project assets, style version, prior drafts, timestamped notes, verified decisions and relevant preferences. Apply the latest explicit project directions first. Use media from the local Studio workspace.
+6. For a manual handoff, build the edit in an appropriate local workflow, review it and register it as a new draft. Compare versions, leave feedback, approve the selected draft and confirm export.
+
+## First-draft requirements
+
+Install the Codex CLI, sign in on the Mac running Studio, and make `codex` available on Studio’s PATH. If needed, set `KAT_CODEX_BIN` to its executable path and `KAT_CODEX_HOME` to its configured home. FFmpeg and FFprobe must be on PATH. Captions and advanced assets can also require local transcription, fonts or document tools. Codex can review accessible public references. Private, unavailable, or unsampled links appear as limitations in the draft review. If the host blocks nested editing commands, Studio can use a constrained local renderer with sampled frames, a title, cutaways and the supplied ending. The review identifies this fallback and its caption and effects limits. When a required tool is unavailable, the job reports a failure and leaves the uploaded media available for retry or manual handoff.
 
 ## Register an assisted edit
 

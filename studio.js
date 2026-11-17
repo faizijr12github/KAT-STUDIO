@@ -331,7 +331,7 @@ function noteMarkup(note,fps){
   <label class="note-status">Status <select data-note-status="${note.id}">${options(statuses,note.status)}</select></label></article>`;
 }
 function sourcePreview(d){
-  return d.timeline.kind==='source-preview'||/^Trim to /.test(d.summary);
+  return d.timeline.kind==='source-preview'||/^(?:Trim to |Imported original preview)/.test(d.summary);
 }
 
 function contextMarkup(ctx){
@@ -403,11 +403,11 @@ function workspace(){
   if(stage==='review'&&!selectedDraft()){setStage('setup');return;}
   const review=stage==='review';
   const d=review?selectedDraft():null, a=review?null:selectedAsset();
-  const first=drafts().find(item=>item.version===1);
+  const first=drafts().find(item=>!sourcePreview(item));
   const videos=assets().filter(item=>item.mime.startsWith('video/')&&item.metadata.duration>0);
   const sourceVideos=videos.filter(item=>item.category==='Raw Footage');
   const primarySource=sourceVideos.find(item=>/\/raw video\//i.test(item.name))||sourceVideos[0];
-  const activePreview=jobs().find(job=>['Preview','Source Preview'].includes(job.kind)&&job.state==='running');
+  const activeDraft=jobs().find(job=>job.kind==='First Draft'&&job.state==='running');
   const source=a||d, playable=source?.mime?.startsWith('video/');
   const info=source?.metadata||{}, fps=info.fps||30, endFrame=Math.max(0,(info.frames||Math.ceil((info.duration||0)*fps))-1);
   const notes=!a&&d?state.notes.filter(n=>n.draft===d.id):[];
@@ -445,6 +445,8 @@ function workspace(){
     <div class="marker-row">${notes.map((n,i)=>`<button data-seek="${n.start_frame}" data-marker="${n.id}" style="left:${n.start_frame/Math.max(1,endFrame)*100}%" title="${escape(n.body)}" aria-label="Note ${i+1}">${i+1}</button>`).join('')}</div>
     <div class="split"><div class="row"><button id="play">Play</button><button id="frame-back" aria-label="Previous frame">−1f</button><button id="frame-next" aria-label="Next frame">+1f</button><button id="guides">Safe zone</button><button id="fullscreen">Full screen</button></div>
     <div class="row"><select id="speed" aria-label="Playback speed">${[.5,1,1.5,2].map(n=>`<option value="${n}" ${n===1?'selected':''}>${n}×</option>`).join('')}</select><span class="tc" id="time">00:00:00:00</span></div></div></div>`:''}
+    ${d?.timeline.recipe?.intakeReview?`<details class="qa-panel"><summary>Folder and reference review</summary>
+      <ul>${[...d.timeline.recipe.intakeReview.assets,...d.timeline.recipe.intakeReview.links].map(item=>`<li><strong>${escape(item.url||assets().find(a=>a.id===item.id)?.name||'Imported asset')}</strong> · ${escape(item.status)} — ${escape(item.detail)}</li>`).join('')}</ul></details>`:''}
     ${d?.timeline.qa?`<details class="qa-panel"><summary>${d.timeline.qa.warnings.length?'Technical QA · review flagged items':'Technical QA · checks passed'}</summary><p>${d.timeline.qa.warnings.length?d.timeline.qa.warnings.map(escape).join(' '):'Video and audio decoded successfully.'} Check caption sync and pacing during playback.</p></details>`:''}
     ${review?`<div class="draft-download" id="draft-download" hidden><p class="muted" id="download-status" role="status"></p><progress id="download-progress" aria-label="Draft download progress" max="1" hidden></progress></div>`:''}
     </section>
@@ -454,11 +456,11 @@ function workspace(){
     <label>Images or clips<input type="file" name="files" accept="image/*,video/*" multiple></label>
     <button class="primary">Add note</button></form><div><div class="notes-list">${notes.map(n=>noteMarkup(n,fps)).join('')}</div>${d.canRevise?`<button class="primary space" id="submit-revision" ${notes.some(n=>n.status==='Pending')&&!jobs().some(j=>j.state==='running')?'':'disabled'}>Submit to Codex</button>`:notes.length?'<button class="space" id="copy-review">Copy review for Codex</button>':''}</div></div></section>`:''}
   </div>
-  ${!review?`<section class="pane setup-footer space"><div><h2>Source preview</h2>
-  <p class="muted">${first?'Open the original version or prepare a new edit with the saved project context.':primarySource?'Check framing and dialogue before preparing the edit.':'Import raw footage to preview it.'}</p></div>
-  <div class="setup-next">${!first&&sourceVideos.length?`<label for="draft-source" class="muted">Source video</label><select id="draft-source">${sourceVideos.map(item=>`<option value="${item.id}" ${item.id===((a?.category==='Raw Footage'?a:primarySource)?.id)?'selected':''}>${escape(item.name)}</option>`).join('')}</select>`:''}
-  <button class="primary" id="start-draft" ${!first&&(!primarySource||activePreview)?'disabled':''}>${activePreview?'Preparing preview…':first?'Open original version':'Create source preview'}</button></div></section>`:''}
-  <div class="space stack" id="project-jobs">${jobs().filter(job=>job.state==='running').map(jobMarkup).join('')}</div>`;
+  ${!review?`<section class="pane setup-footer space"><div><h2>First draft</h2>
+  <p class="muted">${first?'Open the latest edit for review.':primarySource?'Codex reviews the imported folder, footage and references, then renders an edited draft.':'Import a project folder or raw footage to begin.'}</p></div>
+  <div class="setup-next">${!first&&sourceVideos.length>1?`<label for="draft-source" class="muted">Main footage</label><select id="draft-source">${sourceVideos.map(item=>`<option value="${item.id}" ${item.id===((a?.category==='Raw Footage'?a:primarySource)?.id)?'selected':''}>${escape(item.name)}</option>`).join('')}</select>`:''}
+  <button class="primary" id="start-draft" data-source="${escape(primarySource?.id)}" ${!first&&(!primarySource||activeDraft)?'disabled':''}>${activeDraft?'Making first draft…':first?'Open latest draft':'Make first draft'}</button></div></section>`:''}
+  <div class="space stack" id="project-jobs">${projectJobsHtml()}</div>`;
   bindWorkspace(p,d,a,info,fps,endFrame);
   const updateContext=async()=>{$('#context-body').innerHTML=contextMarkup(await readContext(p));};
   $('#show-context').onclick=guard(async e=>{
@@ -526,10 +528,31 @@ async function downloadLatestDraft(project){
     throw error;
   }finally{button.disabled=false;}
 }
+async function droppedFiles(transfer){
+  const files=[...transfer.files];
+  const entries=[...transfer.items].map(item=>item.webkitGetAsEntry?.()).filter(Boolean);
+  if(!entries.some(entry=>entry.isDirectory))return files;
+  async function walk(entry){
+    if(entry.isFile){
+      const file=await new Promise((resolve,reject)=>entry.file(resolve,reject));
+      return [{file,relativePath:entry.fullPath.replace(/^\//,'')}];
+    }
+    const reader=entry.createReader(), children=[];
+    for(;;){
+      const batch=await new Promise((resolve,reject)=>reader.readEntries(resolve,reject));
+      if(!batch.length)break;
+      children.push(...batch);
+    }
+    return (await Promise.all(children.map(walk))).flat();
+  }
+  return (await Promise.all(entries.map(walk))).flat();
+}
+
 async function upload(route,files,query,onProgress=()=>{}){
   const failures=[];
-  for(const [index,file] of files.entries()){
-    const params=new URLSearchParams({...query,name:file.webkitRelativePath||file.name});
+  for(const [index,entry] of files.entries()){
+    const file=entry.file||entry;
+    const params=new URLSearchParams({...query,name:entry.relativePath||file.webkitRelativePath||file.name});
     try{
       const result=await fetch('api/'+route+'?'+params,{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:file});
       if(!result.ok)throw Error((await result.json()).error);
@@ -575,6 +598,8 @@ function bindWorkspace(p,d,a,info,fps,last){
     const doImport=guard(async files=>{
       if(!files.length||importing)return;
       importing=true;
+      const draftButton=$('#start-draft');
+      if(draftButton)draftButton.disabled=true;
       const progress=$('#import-progress',pane), meter=$('#import-meter',pane), status=$('#import-status',pane);
       progress.hidden=false;meter.max=files.length;meter.value=0;status.textContent='Scanning project files…';
       notice('Importing '+files.length+' file(s)…');
@@ -590,24 +615,23 @@ function bindWorkspace(p,d,a,info,fps,last){
     for(const selector of ['#files','#folder'])$(selector).onchange=e=>void doImport([...e.target.files]);
     pane.ondragover=e=>{e.preventDefault();pane.classList.add('dragging');};
     pane.ondragleave=()=>pane.classList.remove('dragging');
-    pane.ondrop=e=>{e.preventDefault();pane.classList.remove('dragging');void doImport([...e.dataTransfer.files]);};
+    pane.ondrop=guard(async e=>{e.preventDefault();pane.classList.remove('dragging');await doImport(await droppedFiles(e.dataTransfer));});
   }
   if($('#back-setup'))$('#back-setup').onclick=()=>setStage('setup');
   if($('#open-latest'))$('#open-latest').onclick=()=>setStage('review',drafts()[0]);
   const startDraft=$('#start-draft');
   if(startDraft)startDraft.onclick=guard(async()=>{
-    const first=drafts().find(item=>item.version===1);
+    const first=drafts().find(item=>!sourcePreview(item));
     if(first){setStage('review',first);return;}
-    const sourceId=$('#draft-source')?.value;
+    const sourceId=$('#draft-source')?.value||startDraft.dataset.source;
     if(!sourceId)return;
     startDraft.disabled=true;
-    startDraft.textContent='Preparing Draft 1…';
+    startDraft.textContent='Making first draft…';
     try{
-      const result=await request('preview',{project:p.id,asset:sourceId,first:true});
-      if(result.draft){await refresh(false);setStage('review',drafts().find(item=>item.id===result.draft));return;}
+      const result=await request('first-draft',{project:p.id,asset:sourceId});
       pendingPreview=result.job;
-      await refresh(false);updateJobs();notice('Preparing the source preview.');
-    }catch(error){startDraft.disabled=false;startDraft.textContent='Start Draft 1';throw error;}
+      await refresh(false);updateJobs();notice('First draft started. Codex will review the supplied material.');
+    }catch(error){startDraft.disabled=false;startDraft.textContent='Make first draft';throw error;}
   });
   if($('#approve'))$('#approve').onclick=guard(async()=>{await request('approve',{project:p.id,draft:d.id});await refresh();notice('Draft approved. Its version is preserved.');});
   if($('#export'))$('#export').onclick=()=>exportDialog(p,d);
@@ -692,9 +716,14 @@ function exportDialog(p,d){
     dialog.close();await refresh(false);updateJobs();notice('Export started.');
   });
 }
+function projectJobsHtml(){
+  const rows=jobs();
+  const latest=rows.find(job=>job.kind==='First Draft');
+  return rows.filter(job=>job.state==='running'||job===latest&&['failed','cancelled','interrupted'].includes(job.state)).map(jobMarkup).join('');
+}
 function updateJobs(){
   if(view==='queue')$('#job-list').innerHTML=state.jobs.map(jobMarkup).join('')||empty('No render jobs.');
-  if(view==='workspace')$('#project-jobs').innerHTML=jobs().filter(job=>job.state==='running').map(jobMarkup).join('');
+  if(view==='workspace')$('#project-jobs').innerHTML=projectJobsHtml();
 }
 async function refresh(redraw=true){
   const sequence=++refreshSequence;
@@ -741,11 +770,11 @@ async function poll(){
   try{
     const before=state.jobs;
     await refresh(false);
-    const completed=state.jobs.find(job=>job.project===projectId&&['Preview','Source Preview','Revision'].includes(job.kind)&&
+    const completed=state.jobs.find(job=>job.project===projectId&&['Preview','Source Preview','Revision','First Draft'].includes(job.kind)&&
       (job.id===pendingPreview||before.some(old=>old.id===job.id&&old.state==='running'))&&job.state!=='running');
     if(view==='workspace'&&completed){
       pendingPreview=null;
-      if(completed.state==='complete'){setStage('review',drafts().find(item=>item.id===completed.draft));notice(completed.kind==='Revision'?'The revised draft is ready.':'Source preview is ready.');}
+      if(completed.state==='complete'){setStage('review',drafts().find(item=>item.id===completed.draft));notice(completed.kind==='First Draft'?completed.detail:completed.kind==='Revision'?'The revised draft is ready.':'Source preview is ready.');}
       else{display();notice(completed.detail,true);}
     }else if(['workspace','queue'].includes(view)&&JSON.stringify(before)!==JSON.stringify(state.jobs))updateJobs();
     $('#connection').textContent='Local studio';

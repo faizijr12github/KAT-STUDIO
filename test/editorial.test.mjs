@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {once} from 'node:events';
 import {spawn,execFileSync} from 'node:child_process';
-import {mkdtemp,readFile,rm} from 'node:fs/promises';
+import {mkdtemp,readFile,rm,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {tmpdir} from 'node:os';
 import {createServer} from 'node:net';
@@ -53,6 +53,25 @@ test('assisted draft validation, assets, scoped memory, and review/export',async
    ff('-f','lavfi','-i','testsrc2=s=320x180:r=30','-f','lavfi','-i','sine=frequency=450:sample_rate=48000','-t','1.2','-c:v','libx264','-pix_fmt','yuv420p','-c:a','aac',raw);
    ff('-f','lavfi','-i','testsrc=s=180x320:r=30','-t','0.4','-c:v','libx264','-pix_fmt','yuv420p',card);
    ff('-i',raw,'-i',card,'-filter_complex','[0:v]scale=180:320,setsar=1[a];[1:v]setsar=1[b];[a][b]concat=n=2:v=1:a=0[v]','-map','[v]','-map','0:a','-af','apad=whole_dur=1.6','-t','1.6','-c:v','libx264','-c:a','aac',render);
+   const worker=path.join(dir,'fixture-codex');
+   env.KAT_CODEX_BIN=worker;
+   await writeFile(worker,`#!${process.execPath}
+const fs=require('node:fs');
+(async()=>{
+ const b=JSON.parse(fs.readFileSync('brief.json'));
+ const raw=b.assets.find(a=>a.id===b.source);
+ if(!b.assets.some(a=>a.name==='Folder/References/Reference.txt'&&a.text.includes('https://example.org/cut'))||
+    b.links.length!==2||!b.style||!b.project.config.brief)process.exit(1);
+ fs.copyFileSync(${JSON.stringify(render)},'draft.mp4');
+ fs.writeFileSync('result.json',JSON.stringify({
+   summary:'Fixture document cut with authored closing card.',
+   recipe:{style:{id:b.style.id,version:b.style.version},sources:[raw.hash],review:{branding:'Checked',pacing:'Checked',audioSync:'Checked',transitions:'Checked'}},
+   assetReview:b.assets.map(a=>({id:a.id,status:'inspected',detail:'Fixture input examined'})),
+   linkReview:b.links.map(url=>({url,status:'unavailable',detail:'External lookup disabled in fixture'})),
+   interventions:['Add a closing sequence']
+ }));
+})();
+`,{mode:0o700});
    await start();
    const initialState=await api('state');
    assert.equal(new Set(initialState.styles.map(row=>row.id)).size,31);
@@ -68,6 +87,22 @@ test('assisted draft validation, assets, scoped memory, and review/export',async
    assert.equal((await upload(project,'Project/.DS_Store',raw)).ignored,true);
    assert.equal((await upload(project,'Project/Brolls/Meeting.mp4',raw)).category,'B-roll');
    assert.equal((await upload(project,'Project/Brand Guidlines/fonts.txt',raw)).category,'Brand Assets');
+   const {id:firstProject}=await api('projects',{name:'First draft fixture',clientName:'Fixture Client',
+     format:'Vertical',brief:'Use the uploaded files.',references:'Example https://example.org/ref',style:key},201);
+   await api('first-draft',{project:firstProject,asset:'missing'},400);
+   await upload(firstProject,'Folder/Raw Video/A-roll.mp4',raw);
+   const reference=path.join(dir,'reference.txt');
+   await writeFile(reference,'Reference: https://example.org/cut');
+   await upload(firstProject,'Folder/References/Reference.txt',reference);
+   const firstCtx=await info(firstProject);
+   const firstAsset=firstCtx.assets.find(a=>a.category==='Raw Footage');
+   const firstJob=await completed((await api('first-draft',{project:firstProject,asset:firstAsset.id},202)).job);
+   assert.equal(firstJob.kind,'First Draft');
+   const firstDraft=(await api('state')).drafts.find(d=>d.id===firstJob.draft);
+   assert.equal(firstDraft.version,1);
+   assert.equal(firstDraft.timeline.kind,'editorial');
+   assert.equal(firstDraft.timeline.recipe.intakeReview.links.length,2);
+   await api('first-draft',{project:firstProject,asset:firstAsset.id},409);
    const ctx=await info(project);
    assert.equal(ctx.style.id,style.id);
    assert.equal(ctx.assets.filter(a=>a.category==='Raw Footage').length,1);

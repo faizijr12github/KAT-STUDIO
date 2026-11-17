@@ -49,7 +49,7 @@ function revisionDependencies(){
 function assertVerified(tag){
   requirements();
   if(tag&&(!allowedTag.test(tag)||tag!=='v'+metadata.version))throw Error('Release tag and package version differ.');
-  for(const file of ['server.mjs','store.mjs','qa.mjs','studio.js','style-gallery.js','learning.mjs','editorial.mjs','edit-context.mjs','kat.mjs'])run(process.execPath,['--check',file]);
+  for(const file of ['server.mjs','store.mjs','qa.mjs','studio.js','style-gallery.js','learning.mjs','editorial.mjs','edit-context.mjs','first-draft.mjs','first-draft-planned.mjs','kat.mjs'])run(process.execPath,['--check',file]);
 }
 function cleanCheckout(){
   if(git(['status','--porcelain','--untracked-files=all'])!=='')throw Error('Checkout has local changes. Review and save them before updating or syncing.');

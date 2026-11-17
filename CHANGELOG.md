@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.0
+
+- Project Setup can make a first editorial draft from a folder, raw footage, and references. It includes input review and uses the project format, style and learned preferences.
+- Draft Review records input findings or access blockers. Source previews remain available as historical versions.
+
 ## 1.1.1
 
 - Tightened the responsive layout for narrow phones, tablets, and short landscape viewports. Navigation wraps, controls stay within their panels, and comparison and review previews adapt to the available space.

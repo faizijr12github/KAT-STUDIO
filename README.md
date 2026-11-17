@@ -1,6 +1,6 @@
 # KAT Studio
 
-KAT Studio is a local video editing and review workspace for Codex. It provides project setup, media imports, timestamped revision notes, a 31-preset gallery with side-by-side comparison, draft playback, client-scoped learning, FFmpeg QA and verified backups. The official Git checkout holds the app, CLI, and Codex skill. Your workspace stays in a separate SQLite database with local media files.
+KAT Studio is a local video editing and review workspace for Codex. It provides project setup, folder imports, Codex-assisted first drafts, timestamped revision notes, a 31-preset gallery with side-by-side comparison, draft playback, client-scoped learning, FFmpeg QA and verified backups. The official Git checkout holds the app, CLI, and Codex skill. Your workspace stays in a separate SQLite database with local media files.
 
 ## Install
 

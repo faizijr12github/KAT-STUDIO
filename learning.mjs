@@ -13,7 +13,7 @@ export function classifyAsset(name,mime=''){
   if(/end[ _-]?(?:screen|card)|outro|closing[ _-]?card/.test(path))return 'End Screens';
   if(/\blogos?\b|wordmark/.test(path))return 'Logos';
   if(/brand[ _-]?(?:guid|kit|assets)|typeface|\.([ot]tf|woff2?)$/.test(path))return 'Brand Assets';
-  if(/captions?[ _-]?video|captioned|reference|\.srt$|\.vtt$/.test(path))return 'References';
+  if(/captions?[ _-]?video|captioned|reference|(?:^|\/)refs?(?:\/|[ _.-])|\.(?:url|webloc)$|\.srt$|\.vtt$/.test(path))return 'References';
   if(/b[ _-]?roll|cutaways?/.test(path))return 'B-roll';
   if(/sound[ _-]?effects|\bsfx\b/.test(path))return 'Sound Effects';
   if(/music|soundtrack|\bbgm\b/.test(path))return 'Music';
