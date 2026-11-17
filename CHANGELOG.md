@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.1
+
+- First-draft QA distinguishes quiet motion from held frames, reports visual issue intervals, and attempts one repair before failing.
+- Failed first drafts offer a retry in Project Setup, and fallback audio is limited before export.
+
 ## 1.2.0
 
 - Project Setup can make a first editorial draft from a folder, raw footage, and references. It includes input review and uses the project format, style and learned preferences.

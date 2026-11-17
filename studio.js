@@ -219,6 +219,7 @@ function jobMarkup(job){
   return `<article class="card"><div class="split"><strong>${escape(name)} · ${escape(job.kind)}</strong><span class="pill">${escape(job.state)}</span></div>
   <p class="muted">${escape(job.detail)}</p>${job.total>0&&['running','complete'].includes(job.state)?`<progress value="${job.progress}" max="1" aria-label="Render completion"></progress><p class="muted">${Math.floor(job.progress*100)}% · ${job.frames} / ${job.total} frames</p>`:''}
   ${job.state==='running'?`<button class="space" data-cancel="${job.id}" data-job-project="${job.project}">Cancel</button>`:''}
+  ${view==='queue'&&job.kind==='First Draft'&&['failed','cancelled','interrupted'].includes(job.state)?`<button class="space" data-project="${escape(job.project)}">Open setup and retry</button>`:''}
   ${job.state==='complete'&&job.hash?`<a class="button" href="${urlFor(job.hash,'KAT-'+job.kind.toLowerCase()+'.mp4')}">Download MP4</a>`:''}</article>`;
 }
 function queue(){
@@ -426,6 +427,11 @@ function workspace(){
     <form id="learning-form" class="pad stack"><label>Instruction or preference<textarea name="text" required maxlength="8000"></textarea></label>
     <div class="row"><label>Applies to<select name="scope"><option value="project">This project</option><option value="client">All projects for this client</option></select></label><button class="primary">Save guidance</button></div></form>
   </section>`+
+  `  ${!review&&!first?`<section class="pane setup-footer space"><div><h2>First draft</h2>
+  <p class="muted">${first?'Open the latest edit for review.':primarySource?'Codex reviews the imported folder, footage and references, then renders an edited draft.':'Import a project folder or raw footage to begin.'}</p></div>
+  <div class="setup-next">${!first&&sourceVideos.length>1?`<label for="draft-source" class="muted">Main footage</label><select id="draft-source">${sourceVideos.map(item=>`<option value="${item.id}" ${item.id===((a?.category==='Raw Footage'?a:primarySource)?.id)?'selected':''}>${escape(item.name)}</option>`).join('')}</select>`:''}
+  <button class="primary" id="start-draft" data-source="${escape(primarySource?.id)}" ${!first&&(!primarySource||activeDraft)?'disabled':''}>${activeDraft?'Making first draft…':first?'Open latest draft':jobs().some(j=>j.kind==='First Draft'&&j.state==='failed')?'Retry first draft':'Make first draft'}</button></div></section>`:''}
+  <div class="space stack workspace-jobs" id="project-jobs">${projectJobsHtml()}</div>`+
   `<div class="workspace ${review?'review-workspace':'setup-workspace'}">
     ${!review?`<section class="pane" id="asset-pane"><h2>Project Assets <small class="muted">${assets().length} files</small></h2><div class="pad">
     <div class="import-area stack"><h3>Add your project media</h3><p class="muted">Import a project folder to preserve its structure, or add individual files. You can also drop files here.</p>
@@ -456,11 +462,7 @@ function workspace(){
     <label>Images or clips<input type="file" name="files" accept="image/*,video/*" multiple></label>
     <button class="primary">Add note</button></form><div><div class="notes-list">${notes.map(n=>noteMarkup(n,fps)).join('')}</div>${d.canRevise?`<button class="primary space" id="submit-revision" ${notes.some(n=>n.status==='Pending')&&!jobs().some(j=>j.state==='running')?'':'disabled'}>Submit to Codex</button>`:notes.length?'<button class="space" id="copy-review">Copy review for Codex</button>':''}</div></div></section>`:''}
   </div>
-  ${!review?`<section class="pane setup-footer space"><div><h2>First draft</h2>
-  <p class="muted">${first?'Open the latest edit for review.':primarySource?'Codex reviews the imported folder, footage and references, then renders an edited draft.':'Import a project folder or raw footage to begin.'}</p></div>
-  <div class="setup-next">${!first&&sourceVideos.length>1?`<label for="draft-source" class="muted">Main footage</label><select id="draft-source">${sourceVideos.map(item=>`<option value="${item.id}" ${item.id===((a?.category==='Raw Footage'?a:primarySource)?.id)?'selected':''}>${escape(item.name)}</option>`).join('')}</select>`:''}
-  <button class="primary" id="start-draft" data-source="${escape(primarySource?.id)}" ${!first&&(!primarySource||activeDraft)?'disabled':''}>${activeDraft?'Making first draft…':first?'Open latest draft':'Make first draft'}</button></div></section>`:''}
-  <div class="space stack" id="project-jobs">${projectJobsHtml()}</div>`;
+`;
   bindWorkspace(p,d,a,info,fps,endFrame);
   const updateContext=async()=>{$('#context-body').innerHTML=contextMarkup(await readContext(p));};
   $('#show-context').onclick=guard(async e=>{

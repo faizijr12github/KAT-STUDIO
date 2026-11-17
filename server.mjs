@@ -177,7 +177,7 @@ function startRevision(draft,notes,context){
       });
     }catch(error){
       console.error('Revision failed:', error.message);
-      jobLog(job,control.cancelled?'cancelled':'failed',control.cancelled?'Cancelled.':(error.message.startsWith('Render QA')?error.message+' Your current draft is preserved.':'Codex could not finish the revision. Your notes and current draft are available for retry.'));
+      jobLog(job,control.cancelled?'cancelled':'failed',control.cancelled?'Cancelled.':(error.code==='KAT_VISUAL_QA'||error.message.startsWith('Render QA')?error.message+' Your current draft is preserved.':'Codex could not finish the revision. Your notes and current draft are available for retry.'));
     }finally{
       active.delete(job);
       await rm(dir,{recursive:true,force:true}).catch(()=>{});

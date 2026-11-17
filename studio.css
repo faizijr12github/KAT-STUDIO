@@ -308,3 +308,6 @@ dialog{max-block-size:calc(100dvh - 24px);overscroll-behavior:contain}
   .stage video,.style-detail .style-art,.compare-grid video{max-height:58svh;min-height:0}
   .stage{min-height:120px}
 }
+
+.workspace-jobs:empty{display:none}
+.workspace-jobs:not(:empty),.setup-footer{margin-bottom:16px}

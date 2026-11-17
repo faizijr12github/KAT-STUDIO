@@ -10,6 +10,7 @@ import {test} from 'node:test';
 import {openStore} from '../store.mjs';
 import {assertEditorial,editingContext,saveLearning} from '../learning.mjs';
 import {contextReceipt,registerEditorial} from '../editorial.mjs';
+import {checkRender} from '../qa.mjs';
 test('assisted draft validation, assets, scoped memory, and review/export',async()=>{
   const dir=await mkdtemp(path.join(tmpdir(),'kat-editorial-'));
   const listener=createServer().listen(0,'127.0.0.1');
@@ -53,6 +54,12 @@ test('assisted draft validation, assets, scoped memory, and review/export',async
    ff('-f','lavfi','-i','testsrc2=s=320x180:r=30','-f','lavfi','-i','sine=frequency=450:sample_rate=48000','-t','1.2','-c:v','libx264','-pix_fmt','yuv420p','-c:a','aac',raw);
    ff('-f','lavfi','-i','testsrc=s=180x320:r=30','-t','0.4','-c:v','libx264','-pix_fmt','yuv420p',card);
    ff('-i',raw,'-i',card,'-filter_complex','[0:v]scale=180:320,setsar=1[a];[1:v]setsar=1[b];[a][b]concat=n=2:v=1:a=0[v]','-map','[v]','-map','0:a','-af','apad=whole_dur=1.6','-t','1.6','-c:v','libx264','-c:a','aac',render);
+   const frozen=path.join(dir,'frozen.mp4');
+   ff('-f','lavfi','-i','color=c=black:s=180x320:r=30','-i',raw,'-map','0:v','-map','1:a','-t','1.2','-c:v','libx264','-c:a','copy',frozen);
+   const still=path.join(dir,'still.mp4');
+   ff('-f','lavfi','-i','color=c=blue:s=180x320:r=30','-i',raw,'-map','0:v','-map','1:a','-t','1.2','-c:v','libx264','-c:a','copy',still);
+   await assert.rejects(checkRender(still,{audio:true,motionEnd:1.2}),
+     error=>error.code==='KAT_VISUAL_QA'&&error.issues.some(issue=>issue.type==='Unexpected still frame'&&issue.start===0));
    const worker=path.join(dir,'fixture-codex');
    env.KAT_CODEX_BIN=worker;
    await writeFile(worker,`#!${process.execPath}
@@ -62,7 +69,10 @@ const fs=require('node:fs');
  const raw=b.assets.find(a=>a.id===b.source);
  if(!b.assets.some(a=>a.name==='Folder/References/Reference.txt'&&a.text.includes('https://example.org/cut'))||
     b.links.length!==2||!b.style||!b.project.config.brief)process.exit(1);
- fs.copyFileSync(${JSON.stringify(render)},'draft.mp4');
+ let prompt='';
+ for await(const chunk of process.stdin)prompt+=chunk;
+ const repair=prompt.includes('Previous render failed technical QA: Black frames at 0.00');
+ fs.copyFileSync(repair?${JSON.stringify(render)}:${JSON.stringify(frozen)},'draft.mp4');
  fs.writeFileSync('result.json',JSON.stringify({
    summary:'Fixture document cut with authored closing card.',
    recipe:{style:{id:b.style.id,version:b.style.version},sources:[raw.hash],review:{branding:'Checked',pacing:'Checked',audioSync:'Checked',transitions:'Checked'}},
@@ -98,6 +108,7 @@ const fs=require('node:fs');
    const firstAsset=firstCtx.assets.find(a=>a.category==='Raw Footage');
    const firstJob=await completed((await api('first-draft',{project:firstProject,asset:firstAsset.id},202)).job);
    assert.equal(firstJob.kind,'First Draft');
+   assert.equal(firstJob.state,'complete');
    const firstDraft=(await api('state')).drafts.find(d=>d.id===firstJob.draft);
    assert.equal(firstDraft.version,1);
    assert.equal(firstDraft.timeline.kind,'editorial');

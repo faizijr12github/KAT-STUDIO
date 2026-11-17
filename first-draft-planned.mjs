@@ -90,7 +90,7 @@ ${JSON.stringify({...brief,assets:brief.assets.map(({localFile,...asset})=>asset
   }
   if(!interventions.length)throw Error('The constrained editor could not apply a meaningful edit. Use Prepare edit for Codex for the full timeline.');
   const duration=(speechFrames+cardFrames)/fps;
-  if(source.metadata.audio)graph.push(`[0:a]atrim=duration=${speechFrames/fps},asetpts=PTS-STARTPTS,apad,atrim=duration=${duration}[audio]`);
+  if(source.metadata.audio)graph.push(`[0:a]atrim=duration=${speechFrames/fps},asetpts=PTS-STARTPTS,alimiter=limit=.89:level=0,apad,atrim=duration=${duration}[audio]`);
   else graph.push(`anullsrc=r=48000:cl=stereo,atrim=duration=${duration}[audio]`);
   await exec('ffmpeg',['-v','error','-y',...inputs,'-filter_complex_threads','1','-filter_complex',graph.join(';'),
     '-map',`[${video}]`,'-map','[audio]','-frames:v',String(speechFrames+cardFrames),'-c:v','libx264','-preset','fast','-threads','4',

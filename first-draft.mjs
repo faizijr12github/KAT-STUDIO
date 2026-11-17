@@ -103,30 +103,40 @@ function validateReview(items,key,expected){
 export async function renderFirstDraft({db,directory,context,brief,dir,signal,onStage}){
   await mkdir(dir,{recursive:true,mode:0o700});
   await writeFile(path.join(dir,'brief.json'),JSON.stringify(brief,null,2),{mode:0o600});
-  onStage('Codex is reviewing the folder and references and building the edit');
-  const reply=await runCodex(dir,signal,brief.links);
-  if(!(await lstat(path.join(dir,'draft.mp4')).catch(()=>null))?.isFile()&&/sandbox|operation not permitted|permission denied/i.test(reply)){
-    onStage('Sampling the footage and planning a draft for the local renderer');
-    await createPlannedDraft({brief,dir,signal,ask:(prompt,images)=>runCodex(dir,signal,brief.links,prompt,images)});
+  let repair='';
+  for(let attempt=0;attempt<2;attempt++){
+    onStage(repair?'Repairing the flagged shot and rendering again':'Codex is reviewing the folder and references and building the edit');
+    const reply=await runCodex(dir,signal,brief.links,instructions+repair);
+    const file=path.join(dir,'draft.mp4');
+    const output=path.join(dir,'result.json');
+    if(!(await lstat(file).catch(()=>null))?.isFile()&&/sandbox|operation not permitted|permission denied/i.test(reply)){
+      onStage('Sampling the footage and planning a draft for the local renderer');
+      await createPlannedDraft({brief,dir,signal,ask:(prompt,images)=>runCodex(dir,signal,brief.links,prompt+repair,images)});
+    }
+    signal.throwIfAborted();
+    onStage('Checking the edited draft and reference review');
+    if(!(await lstat(file).catch(()=>null))?.isFile()||!(await lstat(output).catch(()=>null))?.isFile())
+      throw Error('Codex did not deliver an edited MP4 and review. Your source files are intact.');
+    const result=JSON.parse(await readFile(output,'utf8'));
+    validateReview(result.assetReview,'id',brief.assets.map(a=>a.id));
+    validateReview(result.linkReview,'url',brief.links);
+    const main=brief.assets.find(a=>a.id===brief.source);
+    if(!result.assetReview.some(a=>a.id===main.id&&a.status==='inspected')||
+      !result.recipe?.sources?.includes(main.hash)||
+      !Array.isArray(result.interventions)||!result.interventions.some(v=>typeof v==='string'&&v.trim())||
+      !['branding','pacing','audioSync','transitions'].every(key=>typeof result.recipe.review?.[key]==='string'&&result.recipe.review[key].trim()))
+      throw Error('The draft does not include enough evidence of an editorial pass.');
+    const intakeReview={assets:result.assetReview,links:result.linkReview,interventions:result.interventions};
+    try{
+      const draft=await registerEditorial({db,directory,project:context.project.id,file,summary:result.summary,
+        contextToken:contextReceipt(context),signal,rejectSourceCopy:true,recipe:{...result.recipe,intakeReview}});
+      return {...draft,intakeReview};
+    }catch(error){
+      if(error.code!=='KAT_VISUAL_QA'||attempt)throw error;
+      repair='\nPrevious render failed technical QA: '+error.message+
+        ' Replace or cover the affected frames with suitable moving footage, or correct the source in/out points without cutting meaningful dialogue.';
+      await rm(file,{force:true});
+      await rm(output,{force:true});
+    }
   }
-  signal.throwIfAborted();
-  onStage('Checking the edited draft and reference review');
-  const file=path.join(dir,'draft.mp4');
-  const output=path.join(dir,'result.json');
-  if(!(await lstat(file).catch(()=>null))?.isFile()||!(await lstat(output).catch(()=>null))?.isFile())
-    throw Error('Codex did not deliver an edited MP4 and review. Your source files are intact.');
-  const result=JSON.parse(await readFile(output,'utf8'));
-  validateReview(result.assetReview,'id',brief.assets.map(a=>a.id));
-  validateReview(result.linkReview,'url',brief.links);
-  const main=brief.assets.find(a=>a.id===brief.source);
-  if(!result.assetReview.some(a=>a.id===main.id&&a.status==='inspected')||
-    !result.recipe?.sources?.includes(main.hash)||
-    !Array.isArray(result.interventions)||!result.interventions.some(v=>typeof v==='string'&&v.trim())||
-    !['branding','pacing','audioSync','transitions'].every(key=>typeof result.recipe.review?.[key]==='string'&&result.recipe.review[key].trim()))
-    throw Error('The draft does not include enough evidence of an editorial pass.');
-  const intakeReview={assets:result.assetReview,links:result.linkReview,interventions:result.interventions};
-  const draft=await registerEditorial({db,directory,project:context.project.id,file,summary:result.summary,
-    contextToken:contextReceipt(context),signal,rejectSourceCopy:true,recipe:{...result.recipe,
-      intakeReview}});
-  return {...draft,intakeReview};
 }
